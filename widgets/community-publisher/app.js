@@ -19,7 +19,7 @@ const CONNECTOR = "community-publisher";
 
 export function init(sdk) {
   const props   = sdk.getProps();
-  const baseUrl = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
+  let baseUrl = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
 
   // All API calls go through one helper — action routes to the right /widget handler
   async function api(action, params) {
@@ -196,5 +196,8 @@ export function init(sdk) {
   function showOk(msg)    { const b = el("ok-box");    b.textContent = msg; b.style.display = "block"; }
   function hideOk()       { el("ok-box").style.display  = "none"; }
 
-  sdk.on("propsChanged", () => location.reload());
+  sdk.on("propsChanged", () => {
+    const p = sdk.getProps();
+    baseUrl = (p.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
+  });
 }
