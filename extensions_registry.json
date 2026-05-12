@@ -1,44 +1,35 @@
 {
-  "extensions": [
+  "widgets": [
     {
-      "type": "community-publisher-v1",
       "title": "Community Publisher",
+      "type": "community-publisher",
       "description": "Publish and translate articles directly from the community — moderators only",
+      "category": "custom",
       "source": {
-        "path": "widgets/community-publisher/index.html"
+        "path": "widgets/community-publisher",
+        "entry": "index.html"
       },
       "configuration": {
         "properties": [
           {
             "name": "authorId",
-            "label": "Author User ID",
             "type": "text",
-            "required": true,
-            "default": "2011",
-            "description": "Numeric user ID from Control → Users"
+            "label": "Author User ID",
+            "description": "Numeric user ID from Control Users",
+            "defaultValue": "2011"
           },
           {
             "name": "communityBaseUrl",
+            "type": "text",
             "label": "Community Base URL",
-            "type": "text",
-            "default": "https://netskope-us-sandbox-community.insided.com",
-            "description": "Base URL shown in article View links"
-          },
-          {
-            "name": "connectorPermalink",
-            "label": "inSided Connector Permalink",
-            "type": "text",
-            "default": "insided-api",
-            "description": "Permalink of your inSided API connector"
-          },
-          {
-            "name": "aiConnectorPermalink",
-            "label": "Anthropic Connector Permalink (optional)",
-            "type": "text",
-            "default": "anthropic-ai",
-            "description": "Permalink of your Anthropic connector — leave default if not using AI"
+            "description": "Base URL shown in article View links",
+            "defaultValue": "https://netskope-us-sandbox-community.insided.com"
           }
         ]
+      },
+      "defaultConfig": {
+        "authorId": "2011",
+        "communityBaseUrl": "https://netskope-us-sandbox-community.insided.com"
       }
     }
   ]
