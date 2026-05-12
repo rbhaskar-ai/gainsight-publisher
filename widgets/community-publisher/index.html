@@ -6,94 +6,185 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9f9f7;color:#1a1a18;padding:1.25rem}
-  h2{font-size:15px;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
-  label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6b6b67;display:block;margin-bottom:4px}
-  input[type=text],select,textarea{width:100%;padding:9px 11px;border:1px solid #d1d0c8;border-radius:7px;font-size:13px;font-family:inherit;color:#1a1a18;background:#fff;margin-bottom:12px}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:#6366f1}
-  textarea{min-height:220px;resize:vertical;line-height:1.75}
-  .btn{padding:9px 16px;border-radius:7px;border:1px solid #d1d0c8;background:#fff;color:#1a1a18;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
-  .btn:hover{background:#f0efe8}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:#f4f4f6;color:#111827;font-size:13px;line-height:1.5;
+  }
+  .header{
+    background:#fff;border-bottom:1px solid #e5e7eb;
+    padding:14px 18px;display:flex;align-items:center;gap:10px;
+  }
+  .header-icon{
+    width:34px;height:34px;border-radius:9px;flex-shrink:0;
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:17px;
+  }
+  .header-title{font-size:15px;font-weight:700;color:#111827}
+  .header-sub{font-size:11px;color:#9ca3af;margin-top:1px}
+  .body{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+  .card-head{
+    padding:10px 16px;border-bottom:1px solid #f3f4f6;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .card-title{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em}
+  .card-body{padding:14px 16px}
+  .ai-card{
+    background:linear-gradient(135deg,#faf5ff,#eff6ff);
+    border:1.5px solid #c4b5fd;border-radius:10px;overflow:hidden;
+  }
+  .ai-head{
+    padding:10px 16px;border-bottom:1px solid #ddd6fe;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .ai-title{font-size:13px;font-weight:700;color:#5b21b6;display:flex;align-items:center;gap:7px}
+  .ai-badge{
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;
+    padding:2px 8px;border-radius:99px;
+  }
+  .ai-body{padding:14px 16px}
+  label{font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+  input[type=text],select,textarea{
+    width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;
+    font-size:13px;font-family:inherit;color:#111827;background:#fff;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input[type=text]:focus,select:focus,textarea:focus{
+    outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.1);
+  }
+  textarea{min-height:200px;resize:vertical;line-height:1.7}
+  select{cursor:pointer}
+  .btn{
+    padding:8px 15px;border-radius:7px;border:1px solid #d1d5db;
+    background:#fff;color:#374151;font-size:12px;font-weight:500;
+    cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:6px;transition:all .15s;
+  }
+  .btn:hover{background:#f9fafb;border-color:#9ca3af}
   .btn:disabled{opacity:.4;cursor:not-allowed}
-  .btn.primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
-  .btn.primary:hover{opacity:.85}
-  .btn.ai{background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;font-weight:500}
-  .btn.ai:hover{opacity:.88}
-  .btn.ai:disabled{opacity:.4}
-  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-  .chip{padding:6px 11px;border-radius:6px;border:1px solid #d1d0c8;background:#f5f5f3;font-size:12px;cursor:pointer;user-select:none}
-  .chip.on{border-color:#6366f1;background:#ede9fe;color:#4338ca}
-  .hint{font-size:11px;color:#6b6b67;margin-bottom:10px}
-  .err{background:#fee2e2;color:#b91c1c;border-radius:7px;padding:9px 13px;font-size:12px;margin-bottom:10px;border:1px solid #fca5a5}
-  .ok{background:#dcfce7;color:#15803d;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:10px;border:1px solid #86efac}
-  .card{background:#fff;border:1px solid #e0dfd8;border-radius:10px;padding:14px 16px;margin-bottom:12px}
-  .prow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0efe8;font-size:12px}
+  .btn-primary{
+    background:#111827;color:#fff;border-color:#111827;
+    font-size:13px;padding:10px 22px;font-weight:600;
+  }
+  .btn-primary:hover{background:#1f2937;border-color:#1f2937}
+  .btn-ai{
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    color:#fff;border:none;font-weight:600;font-size:12px;padding:9px 18px;
+  }
+  .btn-ai:hover{opacity:.9}
+  .btn-sm{padding:5px 10px;font-size:11px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    padding:5px 12px;border-radius:99px;border:1px solid #d1d5db;
+    background:#f9fafb;font-size:12px;cursor:pointer;user-select:none;
+    transition:all .15s;display:flex;align-items:center;gap:5px;
+  }
+  .chip:hover{border-color:#a78bfa;background:#f5f3ff}
+  .chip.on{border-color:#7c3aed;background:#ede9fe;color:#5b21b6;font-weight:500}
+  .hint{font-size:11px;color:#9ca3af}
+  .alert{border-radius:8px;padding:10px 14px;font-size:12px;display:flex;align-items:flex-start;gap:8px}
+  .alert-err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .alert-ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:13px;line-height:1.6}
+  .prow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:12px}
   .prow:last-child{border-bottom:none}
   .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-  .ai-card{background:linear-gradient(135deg,#fdf4ff,#eff6ff);border:1.5px solid #c4b5fd;border-radius:10px;padding:14px 16px;margin-bottom:12px}
-  .ai-heading{font-size:13px;font-weight:600;color:#7c3aed;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-  .section-title{font-size:13px;font-weight:600;margin-bottom:10px;color:#1a1a18}
+  .toggle-row{display:flex;align-items:center;gap:9px;padding:10px 0 2px;cursor:pointer}
+  .toggle-row input[type=checkbox]{width:15px;height:15px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0}
+  hr{border:none;border-top:1px solid #f3f4f6;margin:4px 0}
 </style>
 </head>
 <body>
-  <h2>🌐 Community Publisher</h2>
 
-  <!-- AI Write card -->
-  <div class="ai-card">
-    <div class="ai-heading">✦ Write with AI</div>
-    <input type="text" id="ai-prompt" placeholder="Tell me what you want to write about…">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <button class="btn ai" id="ai-btn" disabled>✦ Generate</button>
-      <span id="ai-tip" class="hint" style="margin:0"></span>
+  <div class="header">
+    <div class="header-icon">✦</div>
+    <div>
+      <div class="header-title">Community Publisher</div>
+      <div class="header-sub">Create · translate · publish</div>
     </div>
-    <div id="ai-err" class="err" style="display:none;margin-top:10px"></div>
   </div>
 
-  <!-- Article -->
-  <div class="card">
-    <div class="section-title">Article</div>
-    <label>Title</label>
-    <input type="text" id="title" placeholder="Article title…">
-    <label>Body</label>
-    <textarea id="body" placeholder="Write your article here…"></textarea>
-    <div class="hint" id="word-count" style="text-align:right;margin-bottom:0">0 chars · 0 words</div>
-  </div>
+  <div class="body">
 
-  <!-- Languages -->
-  <div class="card">
-    <div class="section-title">Publish languages</div>
-    <div class="chips" id="lang-chips"></div>
-    <div class="hint" style="margin-bottom:0">English is always included · free translation via MyMemory</div>
-  </div>
-
-  <!-- Section + draft -->
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span class="section-title" style="margin:0">Community section</span>
-      <button class="btn" id="reload-cats-btn" style="font-size:11px;padding:4px 10px">↻ Refresh</button>
+    <!-- AI Write -->
+    <div class="ai-card">
+      <div class="ai-head">
+        <div class="ai-title">✦ Write with AI</div>
+        <span class="ai-badge">AI</span>
+      </div>
+      <div class="ai-body">
+        <input type="text" id="ai-prompt" placeholder="What do you want to write about? e.g. 'Zero Trust best practices'">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-ai" id="ai-btn">✦ Generate article</button>
+          <span id="ai-tip" class="hint"></span>
+        </div>
+        <div id="ai-err" class="alert alert-err" style="display:none;margin-top:10px"></div>
+      </div>
     </div>
-    <select id="category-select"><option value="">Loading sections…</option></select>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
-      <input type="checkbox" id="draft-toggle" checked style="width:14px;height:14px;accent-color:#6366f1">
-      <span style="font-size:13px;font-weight:500">Save as draft
-        <span style="color:#6b6b67;font-weight:400;font-size:12px"> — publish manually in Control when ready</span>
-      </span>
-    </label>
-  </div>
 
-  <!-- Feedback -->
-  <div id="error-box" class="err" style="display:none"></div>
-  <div id="ok-box"    class="ok"  style="display:none"></div>
-  <div id="progress"  class="card" style="display:none">
-    <div class="section-title">Publishing progress</div>
-    <div id="progress-rows"></div>
-  </div>
+    <!-- Article -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Article</span>
+        <span id="word-count" class="hint">0 chars · 0 words</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label>Title</label>
+          <input type="text" id="title" placeholder="Article title…">
+        </div>
+        <div>
+          <label>Body</label>
+          <textarea id="body" placeholder="Write your article here…"></textarea>
+        </div>
+      </div>
+    </div>
 
-  <!-- Action -->
-  <div class="row">
-    <button class="btn primary" id="publish-btn">🚀 Publish</button>
-    <button class="btn" id="reset-btn" style="display:none">+ New article</button>
+    <!-- Languages -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Publish languages</span></div>
+      <div class="card-body">
+        <div class="chips" id="lang-chips"></div>
+        <div class="hint" style="margin-top:10px">English is always included · free translation via MyMemory</div>
+      </div>
+    </div>
+
+    <!-- Section + draft -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Community section</span>
+        <button class="btn btn-sm" id="reload-cats-btn">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+        <select id="category-select"><option value="">Loading sections…</option></select>
+        <hr>
+        <label class="toggle-row" style="margin:0">
+          <input type="checkbox" id="draft-toggle" checked>
+          <span>
+            <span style="font-size:13px;font-weight:500;color:#111827">Save as draft</span>
+            <span style="font-size:11px;color:#6b7280;font-weight:400"> — publish manually in Control when ready</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div id="error-box" class="alert alert-err" style="display:none"></div>
+    <div id="ok-box"    class="alert alert-ok"  style="display:none"></div>
+
+    <!-- Progress -->
+    <div id="progress" class="card" style="display:none">
+      <div class="card-head"><span class="card-title">Publishing progress</span></div>
+      <div class="card-body"><div id="progress-rows"></div></div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;align-items:center;padding-bottom:8px">
+      <button class="btn btn-primary" id="publish-btn">🚀 Publish</button>
+      <button class="btn" id="reset-btn" style="display:none">+ New article</button>
+    </div>
+
   </div>
 
   <script type="module" src="app.js"></script>
