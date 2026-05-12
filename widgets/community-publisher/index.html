@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9f9f7;color:#1a1a18;padding:1.25rem}
+  h2{font-size:15px;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+  label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6b6b67;display:block;margin-bottom:4px}
+  input[type=text],select,textarea{width:100%;padding:9px 11px;border:1px solid #d1d0c8;border-radius:7px;font-size:13px;font-family:inherit;color:#1a1a18;background:#fff;margin-bottom:12px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#6366f1}
+  textarea{min-height:220px;resize:vertical;line-height:1.75}
+  .btn{padding:9px 16px;border-radius:7px;border:1px solid #d1d0c8;background:#fff;color:#1a1a18;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:#f0efe8}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
+  .btn.primary:hover{opacity:.85}
+  .btn.ai{background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;font-weight:500}
+  .btn.ai:hover{opacity:.88}
+  .btn.ai:disabled{opacity:.4}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .chip{padding:6px 11px;border-radius:6px;border:1px solid #d1d0c8;background:#f5f5f3;font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{border-color:#6366f1;background:#ede9fe;color:#4338ca}
+  .hint{font-size:11px;color:#6b6b67;margin-bottom:10px}
+  .err{background:#fee2e2;color:#b91c1c;border-radius:7px;padding:9px 13px;font-size:12px;margin-bottom:10px;border:1px solid #fca5a5}
+  .ok{background:#dcfce7;color:#15803d;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:10px;border:1px solid #86efac}
+  .card{background:#fff;border:1px solid #e0dfd8;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .prow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0efe8;font-size:12px}
+  .prow:last-child{border-bottom:none}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .ai-card{background:linear-gradient(135deg,#fdf4ff,#eff6ff);border:1.5px solid #c4b5fd;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .ai-heading{font-size:13px;font-weight:600;color:#7c3aed;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .section-title{font-size:13px;font-weight:600;margin-bottom:10px;color:#1a1a18}
+</style>
+</head>
+<body>
+  <h2>🌐 Community Publisher</h2>
+
+  <!-- AI Write card -->
+  <div class="ai-card">
+    <div class="ai-heading">✦ Write with AI</div>
+    <input type="text" id="ai-prompt" placeholder="Tell me what you want to write about…">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn ai" id="ai-btn" disabled>✦ Generate</button>
+      <span id="ai-tip" class="hint" style="margin:0"></span>
+    </div>
+    <div id="ai-err" class="err" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <!-- Article -->
+  <div class="card">
+    <div class="section-title">Article</div>
+    <label>Title</label>
+    <input type="text" id="title" placeholder="Article title…">
+    <label>Body</label>
+    <textarea id="body" placeholder="Write your article here…"></textarea>
+    <div class="hint" id="word-count" style="text-align:right;margin-bottom:0">0 chars · 0 words</div>
+  </div>
+
+  <!-- Languages -->
+  <div class="card">
+    <div class="section-title">Publish languages</div>
+    <div class="chips" id="lang-chips"></div>
+    <div class="hint" style="margin-bottom:0">English is always included · free translation via MyMemory</div>
+  </div>
+
+  <!-- Section + draft -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span class="section-title" style="margin:0">Community section</span>
+      <button class="btn" id="reload-cats-btn" style="font-size:11px;padding:4px 10px">↻ Refresh</button>
+    </div>
+    <select id="category-select"><option value="">Loading sections…</option></select>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+      <input type="checkbox" id="draft-toggle" checked style="width:14px;height:14px;accent-color:#6366f1">
+      <span style="font-size:13px;font-weight:500">Save as draft
+        <span style="color:#6b6b67;font-weight:400;font-size:12px"> — publish manually in Control when ready</span>
+      </span>
+    </label>
+  </div>
+
+  <!-- Feedback -->
+  <div id="error-box" class="err" style="display:none"></div>
+  <div id="ok-box"    class="ok"  style="display:none"></div>
+  <div id="progress"  class="card" style="display:none">
+    <div class="section-title">Publishing progress</div>
+    <div id="progress-rows"></div>
+  </div>
+
+  <!-- Action -->
+  <div class="row">
+    <button class="btn primary" id="publish-btn">🚀 Publish</button>
+    <button class="btn" id="reset-btn" style="display:none">+ New article</button>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

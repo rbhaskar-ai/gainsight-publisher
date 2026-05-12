@@ -1,0 +1,45 @@
+{
+  "extensions": [
+    {
+      "type": "community-publisher-v1",
+      "title": "Community Publisher",
+      "description": "Publish and translate articles directly from the community — moderators only",
+      "source": {
+        "path": "widgets/community-publisher/index.html"
+      },
+      "configuration": {
+        "properties": [
+          {
+            "name": "authorId",
+            "label": "Author User ID",
+            "type": "text",
+            "required": true,
+            "default": "2011",
+            "description": "Numeric user ID from Control → Users"
+          },
+          {
+            "name": "communityBaseUrl",
+            "label": "Community Base URL",
+            "type": "text",
+            "default": "https://netskope-us-sandbox-community.insided.com",
+            "description": "Base URL shown in article View links"
+          },
+          {
+            "name": "connectorPermalink",
+            "label": "inSided Connector Permalink",
+            "type": "text",
+            "default": "insided-api",
+            "description": "Permalink of your inSided API connector"
+          },
+          {
+            "name": "aiConnectorPermalink",
+            "label": "Anthropic Connector Permalink (optional)",
+            "type": "text",
+            "default": "anthropic-ai",
+            "description": "Permalink of your Anthropic connector — leave default if not using AI"
+          }
+        ]
+      }
+    }
+  ]
+}
