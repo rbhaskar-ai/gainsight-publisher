@@ -114,8 +114,17 @@
         <span class="ai-badge">AI</span>
       </div>
       <div class="ai-body">
-        <input type="text" id="ai-prompt" placeholder="What do you want to write about? e.g. 'Zero Trust best practices'">
-        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <div style="margin-bottom:10px">
+          <label>Topic or instructions</label>
+          <input type="text" id="ai-prompt" placeholder="e.g. 'Zero Trust best practices' — or leave blank to summarise the URL below">
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:6px">
+            Source URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;font-size:11px">(optional — paste any public webpage)</span>
+          </label>
+          <input type="text" id="ai-url" placeholder="https://example.com/article-to-base-article-on">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn btn-ai" id="ai-btn">✦ Generate article</button>
           <span id="ai-tip" class="hint"></span>
         </div>
