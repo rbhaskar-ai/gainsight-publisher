@@ -30,6 +30,7 @@ export function init(sdk) {
   }
 
   let selectedLangs = new Set(["en"]);
+  let rawBodyHtml = null; // set when article is imported; takes priority over Quill content
   const el = (id) => sdk.$(`#${id}`);
 
   // ── Quill editor ──────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ export function init(sdk) {
   // ── publish ───────────────────────────────────────────────────────────────
   el("publish-btn").addEventListener("click", async () => {
     const title   = el("title").value.trim();
-    const bodyHtml = quill ? quill.root.innerHTML : "";
+    const bodyHtml = rawBodyHtml || (quill ? quill.root.innerHTML : "");
     const isDraft  = el("draft-toggle").checked;
     const catSel   = el("category-select");
     const catMan   = sdk.$(`#cat-manual`);
@@ -278,6 +279,11 @@ export function init(sdk) {
     sdk.$(`#html-source`).value = "";
     sdk.$(`#import-url`).value = "";
     el("html-source-wrap").style.display = "none";
+    rawBodyHtml = null;
+    el("imported-preview").style.display = "none";
+    el("imported-preview").innerHTML = "";
+    el("clear-import-btn").style.display = "none";
+    el("editor-wrap").style.display = "block";
     if (quill) quill.setContents([]);
     selectedLangs = new Set(["en"]); renderChips(); updateWordCount();
     hideOk(); hideError();
@@ -310,13 +316,31 @@ export function init(sdk) {
 
   el("html-apply-btn").addEventListener("click", () => {
     const html = sdk.$(`#html-source`).value.trim();
-    if (!html || !quill) return;
-    // Set innerHTML directly — bypasses Quill sanitizer, preserves tables and images
-    quill.root.innerHTML = html;
-    updateWordCount();
+    if (!html) return;
+    rawBodyHtml = html;
+    // Show as preview div — bypasses Quill entirely so tables/images are preserved
+    const preview = el("imported-preview");
+    preview.innerHTML = html;
+    preview.style.display = "block";
+    el("editor-wrap").style.display = "none";
+    el("clear-import-btn").style.display = "inline-flex";
+    // Update word/char count from raw text
+    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const wc = sdk.$(`#word-count`); const cc = sdk.$(`#char-count`);
+    if (wc) wc.textContent = `${text.split(/\s+/).filter(Boolean).length} words`;
+    if (cc) cc.textContent = `${text.length.toLocaleString()} chars`;
     sdk.$(`#html-source`).value = "";
     sdk.$(`#import-url`).value = "";
     el("html-source-wrap").style.display = "none";
+  });
+
+  el("clear-import-btn").addEventListener("click", () => {
+    rawBodyHtml = null;
+    el("imported-preview").style.display = "none";
+    el("imported-preview").innerHTML = "";
+    el("clear-import-btn").style.display = "none";
+    el("editor-wrap").style.display = "block";
+    updateWordCount();
   });
 
   // ── helpers ────────────────────────────────────────────────────────────────
