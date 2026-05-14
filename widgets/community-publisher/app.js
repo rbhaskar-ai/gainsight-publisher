@@ -64,17 +64,22 @@ export function init(sdk) {
   async function loadCategories() {
     const sel = el("category-select");
     sel.innerHTML = `<option value="">Loading sections…</option>`;
+    const existing = sdk.$(`#cat-manual-wrap`);
+    if (existing) existing.remove();
     try {
       const data = await api("categories");
       const list = Array.isArray(data) ? data : (data.items || data.result || []);
       if (!list.length) throw new Error("Empty list");
-      sel.innerHTML = `<option value="">Select a section…</option>` +
+      sel.innerHTML = `<option value="">— Select a section —</option>` +
         list.map(c => `<option value="${c.id}">${c.name || c.title || "Category " + c.id}</option>`).join("");
     } catch (e) {
-      sel.innerHTML = `<option value="">Failed — enter ID manually</option>`;
-      if (!sdk.$(`#cat-manual`))
-        sel.insertAdjacentHTML("afterend",
-          `<input type="text" id="cat-manual" placeholder="Category ID, e.g. 17" style="margin-top:6px">`);
+      sel.innerHTML = `<option value="">Could not load — enter ID below</option>`;
+      sel.insertAdjacentHTML("afterend",
+        `<div id="cat-manual-wrap" style="margin-top:8px">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Category ID</div>
+          <input type="text" id="cat-manual" placeholder="e.g. 17  (find it in Control → Categories URL)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;color:#111827;background:#fff">
+          <div style="font-size:11px;color:#9ca3af;margin-top:5px">Go to Control Panel → Categories → click any category → copy the ID from the URL</div>
+        </div>`);
     }
   }
   loadCategories();
@@ -107,7 +112,7 @@ export function init(sdk) {
     const isDraft = el("draft-toggle").checked;
     const catSel  = el("category-select");
     const catMan  = sdk.$(`#cat-manual`);
-    const catId   = (catSel?.value) || (catMan?.value) || "";
+    const catId   = (catSel?.value && catSel.value !== "") ? catSel.value : (catMan?.value?.trim() || "");
 
     hideError(); hideOk();
     if (!title || !body) { showError("Add a title and body first."); return; }
