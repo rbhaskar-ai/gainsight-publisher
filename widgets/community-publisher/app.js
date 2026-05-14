@@ -276,6 +276,7 @@ export function init(sdk) {
     el("ai-prompt").value = "";
     el("ai-url").value = "";
     sdk.$(`#html-source`).value = "";
+    sdk.$(`#import-url`).value = "";
     el("html-source-wrap").style.display = "none";
     if (quill) quill.setContents([]);
     selectedLangs = new Set(["en"]); renderChips(); updateWordCount();
@@ -284,17 +285,37 @@ export function init(sdk) {
     el("reset-btn").style.display = "none";
   });
 
-  // ── paste HTML source into editor ─────────────────────────────────────────
+  // ── import article (URL fetch or raw HTML paste) ──────────────────────────
   el("html-toggle-btn").addEventListener("click", () => {
     const wrap = el("html-source-wrap");
-    wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+    const visible = wrap.style.display === "flex";
+    wrap.style.display = visible ? "none" : "flex";
   });
+
+  el("import-url-btn").addEventListener("click", async () => {
+    const url = sdk.$(`#import-url`).value.trim();
+    if (!url) return;
+    const btn = el("import-url-btn");
+    btn.disabled = true; btn.textContent = "Fetching…";
+    try {
+      const data = await api("fetch-article", { url });
+      if (data.error) throw new Error(data.error);
+      sdk.$(`#html-source`).value = data.html || "";
+    } catch (e) {
+      alert("Import failed: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "↓ Fetch";
+    }
+  });
+
   el("html-apply-btn").addEventListener("click", () => {
     const html = sdk.$(`#html-source`).value.trim();
     if (!html || !quill) return;
-    quill.clipboard.dangerouslyPasteHTML(html);
+    // Set innerHTML directly — bypasses Quill sanitizer, preserves tables and images
+    quill.root.innerHTML = html;
     updateWordCount();
     sdk.$(`#html-source`).value = "";
+    sdk.$(`#import-url`).value = "";
     el("html-source-wrap").style.display = "none";
   });
 

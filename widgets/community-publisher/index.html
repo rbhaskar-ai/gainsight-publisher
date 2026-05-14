@@ -141,11 +141,22 @@
             🤖 <strong>Auto-appended to translated versions:</strong> This article has been automatically translated from English using AI. If you find any inaccuracies, please report them to <a href="mailto:community@netskope.com" style="color:#166534">community@netskope.com</a>.
           </div>
           <div style="margin-top:8px">
-            <button class="btn btn-sm" id="html-toggle-btn" type="button">⌨ Paste HTML source</button>
-            <div id="html-source-wrap" style="display:none;margin-top:8px">
-              <div style="font-size:11px;color:#6b7280;margin-bottom:5px">Paste raw HTML (preserves tables, images, all formatting)</div>
-              <textarea id="html-source" placeholder="Paste raw HTML here, then click Apply…" style="width:100%;height:110px;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:monospace;color:#111827;resize:vertical"></textarea>
-              <button class="btn btn-sm" id="html-apply-btn" style="margin-top:6px">✓ Apply to editor</button>
+            <button class="btn btn-sm" id="html-toggle-btn" type="button">⬇ Import article</button>
+            <div id="html-source-wrap" style="display:none;margin-top:8px;display:none;flex-direction:column;gap:8px">
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Import from URL</div>
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="import-url" placeholder="https://community.netskope.com/t5/…" style="flex:1;font-size:12px">
+                  <button class="btn btn-sm" id="import-url-btn">↓ Fetch</button>
+                </div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:4px">Fetches the page and extracts article content with all formatting and images</div>
+              </div>
+              <div style="font-size:11px;color:#9ca3af;text-align:center">— or paste HTML manually —</div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Raw HTML</div>
+                <textarea id="html-source" placeholder="Paste raw HTML here…" style="width:100%;height:100px;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:monospace;color:#111827;resize:vertical"></textarea>
+              </div>
+              <button class="btn btn-sm" id="html-apply-btn">✓ Apply to editor</button>
             </div>
           </div>
         </div>
