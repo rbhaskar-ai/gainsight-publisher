@@ -230,15 +230,12 @@ export function init(sdk) {
         let txTitle = title, txBody = bodyHtml;
 
         if (jobs[i].c !== "en") {
-          // Extract images, translate text only, restore images
+          // Extract images, send HTML directly (Google Translate preserves tags), restore images
           const { withPlaceholders, imgs } = extractImgs(bodyHtml);
-          const plainText = htmlToPlain(withPlaceholders);
-          const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body: plainText });
+          const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body: withPlaceholders });
           if (tx.error) throw new Error(tx.error);
           txTitle = tx.title;
-          // Wrap translated paragraphs in <p> tags and restore images
-          const restoredBody = restoreImgs(tx.body, imgs);
-          txBody = restoredBody.split(/\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join("");
+          txBody = restoreImgs(tx.body, imgs);
         }
 
         const result = await api("articles", {
