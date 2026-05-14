@@ -188,6 +188,9 @@ export function init(sdk) {
     }
   });
 
+  // ── AI disclaimer appended to all translated articles ─────────────────────
+  const AI_DISCLAIMER = `<p><br></p><p>---</p><p><em>🤖 <strong>AI Translation Notice:</strong> This article has been automatically translated from English using AI. If you find any inaccuracies, please report them to <a href="mailto:community@netskope.com">community@netskope.com</a>.</em></p>`;
+
   // ── translation helpers ───────────────────────────────────────────────────
   // Extract <img> tags, replace with placeholders, translate text, restore images
   function extractImgs(html) {
@@ -235,7 +238,7 @@ export function init(sdk) {
           const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body: withPlaceholders });
           if (tx.error) throw new Error(tx.error);
           txTitle = tx.title;
-          txBody = restoreImgs(tx.body, imgs);
+          txBody = restoreImgs(tx.body, imgs) + AI_DISCLAIMER;
         }
 
         const result = await api("articles", {
@@ -272,11 +275,27 @@ export function init(sdk) {
     el("title").value = "";
     el("ai-prompt").value = "";
     el("ai-url").value = "";
+    sdk.$(`#html-source`).value = "";
+    el("html-source-wrap").style.display = "none";
     if (quill) quill.setContents([]);
     selectedLangs = new Set(["en"]); renderChips(); updateWordCount();
     hideOk(); hideError();
     el("progress").style.display = "none";
     el("reset-btn").style.display = "none";
+  });
+
+  // ── paste HTML source into editor ─────────────────────────────────────────
+  el("html-toggle-btn").addEventListener("click", () => {
+    const wrap = el("html-source-wrap");
+    wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+  });
+  el("html-apply-btn").addEventListener("click", () => {
+    const html = sdk.$(`#html-source`).value.trim();
+    if (!html || !quill) return;
+    quill.clipboard.dangerouslyPasteHTML(html);
+    updateWordCount();
+    sdk.$(`#html-source`).value = "";
+    el("html-source-wrap").style.display = "none";
   });
 
   // ── helpers ────────────────────────────────────────────────────────────────
