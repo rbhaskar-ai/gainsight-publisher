@@ -17,11 +17,9 @@ const TX_NAMES = {
 const CONNECTOR = "community-publisher";
 
 export function init(sdk) {
-  const props   = sdk.getProps();
-  let baseUrl = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
+  const props  = sdk.getProps();
+  let baseUrl  = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
 
-  // Gainsight SDK: use window.WidgetServiceSDK for connector calls (sdk param is widget context only)
-  // Per docs: payload (not body) is the correct field name
   async function api(action, params) {
     const connSdk = (sdk.connectors) ? sdk : new window.WidgetServiceSDK();
     return connSdk.connectors.execute({
@@ -34,15 +32,92 @@ export function init(sdk) {
   let selectedLangs = new Set(["en"]);
   const el = (id) => sdk.$(`#${id}`);
 
-  // ── word count ──
-  el("body").addEventListener("input", updateWordCount);
-  function updateWordCount() {
-    const t = el("body").value;
-    el("word-count").textContent =
-      `${t.length.toLocaleString()} chars · ${t.split(/\s+/).filter(Boolean).length} words`;
+  // ── Quill editor ──────────────────────────────────────────────────────────
+  let quill = null;
+
+  function initQuill() {
+    const editorEl = sdk.$(`#editor`);
+    if (!editorEl || quill) return;
+
+    quill = new window.Quill(editorEl, {
+      theme: "snow",
+      placeholder: "Write your article here…",
+      modules: {
+        toolbar: {
+          container: [
+            [{ header: [1, 2, 3, false] }],
+            ["bold", "italic", "underline", "strike"],
+            [{ color: [] }, { background: [] }],
+            [{ list: "ordered" }, { list: "bullet" }],
+            [{ align: [] }],
+            ["blockquote", "code-block"],
+            ["link", "image"],
+            ["clean"],
+          ],
+          handlers: { image: imageUploadHandler },
+        },
+      },
+    });
+
+    quill.on("text-change", updateWordCount);
   }
 
-  // ── language chips ──
+  // ── image upload via community API ────────────────────────────────────────
+  function imageUploadHandler() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.click();
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl   = e.target.result;
+        const base64    = dataUrl.split(",")[1];
+        const mimeType  = file.type;
+        const filename  = file.name;
+        const range     = quill.getSelection(true);
+
+        // Insert placeholder while uploading
+        quill.insertText(range.index, " ", "user");
+        quill.setSelection(range.index + 1);
+
+        try {
+          const result = await api("upload-image", { imageBase64: base64, mimeType, filename });
+          // Remove placeholder
+          quill.deleteText(range.index, 1);
+          const url = result.url || result.imageUrl || result.src || result.link;
+          if (url) {
+            quill.insertEmbed(range.index, "image", url, "user");
+          } else {
+            throw new Error("No URL returned");
+          }
+        } catch (err) {
+          // Fallback: embed as data URL (works but won't be community-hosted)
+          quill.deleteText(range.index, 1);
+          quill.insertEmbed(range.index, "image", dataUrl, "user");
+          console.warn("Image upload failed, using data URL:", err.message);
+        }
+        quill.setSelection(range.index + 1);
+      };
+      reader.readAsDataURL(file);
+    };
+  }
+
+  // ── word count ────────────────────────────────────────────────────────────
+  function updateWordCount() {
+    if (!quill) return;
+    const text = quill.getText().trim();
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const chars = text.length;
+    const wc = sdk.$(`#word-count`);
+    const cc = sdk.$(`#char-count`);
+    if (wc) wc.textContent = `${words} words`;
+    if (cc) cc.textContent = `${chars.toLocaleString()} chars`;
+  }
+
+  // ── language chips ────────────────────────────────────────────────────────
   function renderChips() {
     const wrap = el("lang-chips");
     wrap.innerHTML = LANGS.map(l =>
@@ -59,9 +134,8 @@ export function init(sdk) {
       });
     });
   }
-  renderChips();
 
-  // ── load categories ──
+  // ── categories ────────────────────────────────────────────────────────────
   async function loadCategories() {
     const sel = el("category-select");
     sel.innerHTML = `<option value="">Loading sections…</option>`;
@@ -70,7 +144,7 @@ export function init(sdk) {
     try {
       const data = await api("categories");
       const list = Array.isArray(data) ? data : (data.items || data.result || []);
-      if (!list.length) throw new Error("Empty list");
+      if (!list.length) throw new Error("Empty");
       sel.innerHTML = `<option value="">— Select a section —</option>` +
         list.map(c => `<option value="${c.id}">${c.name || c.title || "Category " + c.id}</option>`).join("");
     } catch (e) {
@@ -78,19 +152,19 @@ export function init(sdk) {
       sel.insertAdjacentHTML("afterend",
         `<div id="cat-manual-wrap" style="margin-top:8px">
           <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Category ID</div>
-          <input type="text" id="cat-manual" placeholder="e.g. 17  (find it in Control → Categories URL)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;color:#111827;background:#fff">
+          <input type="text" id="cat-manual" placeholder="e.g. 17  (Control Panel → Categories URL)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;color:#111827;background:#fff">
           <div style="font-size:11px;color:#9ca3af;margin-top:5px">Go to Control Panel → Categories → click any category → copy the ID from the URL</div>
         </div>`);
     }
   }
-  loadCategories();
-  el("reload-cats-btn").addEventListener("click", loadCategories);
 
-  // ── AI generate ──
+  // ── AI generate ───────────────────────────────────────────────────────────
   el("ai-btn").addEventListener("click", async () => {
     const prompt = el("ai-prompt").value.trim();
     const url    = el("ai-url").value.trim();
-    if (!prompt && !url) { const b = el("ai-err"); b.textContent = "Enter a topic or paste a URL."; b.style.display = "block"; return; }
+    if (!prompt && !url) {
+      const b = el("ai-err"); b.textContent = "Enter a topic or paste a URL."; b.style.display = "block"; return;
+    }
     const btn = el("ai-btn");
     btn.disabled = true; btn.textContent = "✦ Generating…";
     el("ai-err").style.display = "none";
@@ -101,8 +175,12 @@ export function init(sdk) {
       const data = await api("generate", params);
       if (data.error) throw new Error(data.error);
       el("title").value = data.title || "";
-      el("body").value  = data.body  || "";
-      updateWordCount();
+      if (quill) {
+        quill.clipboard.dangerouslyPasteHTML(
+          (data.body || "").replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")
+        );
+        updateWordCount();
+      }
     } catch (e) {
       const b = el("ai-err"); b.textContent = "AI error: " + e.message; b.style.display = "block";
     } finally {
@@ -110,18 +188,34 @@ export function init(sdk) {
     }
   });
 
-  // ── publish ──
+  // ── translation helpers ───────────────────────────────────────────────────
+  // Extract <img> tags, replace with placeholders, translate text, restore images
+  function extractImgs(html) {
+    const imgs = [];
+    const withPlaceholders = html.replace(/<img[^>]*>/gi, m => {
+      imgs.push(m); return `[IMG${imgs.length - 1}]`;
+    });
+    return { withPlaceholders, imgs };
+  }
+  function restoreImgs(text, imgs) {
+    return text.replace(/\[IMG(\d+)\]/g, (_, i) => imgs[+i] || "");
+  }
+  function htmlToPlain(html) {
+    return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  // ── publish ───────────────────────────────────────────────────────────────
   el("publish-btn").addEventListener("click", async () => {
     const title   = el("title").value.trim();
-    const body    = el("body").value.trim();
-    const isDraft = el("draft-toggle").checked;
-    const catSel  = el("category-select");
-    const catMan  = sdk.$(`#cat-manual`);
-    const catId   = (catSel?.value && catSel.value !== "") ? catSel.value : (catMan?.value?.trim() || "");
+    const bodyHtml = quill ? quill.root.innerHTML : "";
+    const isDraft  = el("draft-toggle").checked;
+    const catSel   = el("category-select");
+    const catMan   = sdk.$(`#cat-manual`);
+    const catId    = (catSel?.value && catSel.value !== "") ? catSel.value : (catMan?.value?.trim() || "");
 
     hideError(); hideOk();
-    if (!title || !body) { showError("Add a title and body first."); return; }
-    if (!catId)          { showError("Select a community section."); return; }
+    if (!title || !bodyHtml || bodyHtml === "<p><br></p>") { showError("Add a title and body first."); return; }
+    if (!catId) { showError("Select or enter a community section."); return; }
 
     const btn = el("publish-btn");
     btn.disabled = true; btn.textContent = "Publishing…";
@@ -133,16 +227,20 @@ export function init(sdk) {
     for (let i = 0; i < jobs.length; i++) {
       jobs[i].status = "working"; renderProgress(jobs, isDraft);
       try {
-        let txTitle = title, txBody = body;
+        let txTitle = title, txBody = bodyHtml;
 
-        // translate non-English
         if (jobs[i].c !== "en") {
-          const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body });
+          // Extract images, translate text only, restore images
+          const { withPlaceholders, imgs } = extractImgs(bodyHtml);
+          const plainText = htmlToPlain(withPlaceholders);
+          const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body: plainText });
           if (tx.error) throw new Error(tx.error);
-          txTitle = tx.title; txBody = tx.body;
+          txTitle = tx.title;
+          // Wrap translated paragraphs in <p> tags and restore images
+          const restoredBody = restoreImgs(tx.body, imgs);
+          txBody = restoredBody.split(/\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join("");
         }
 
-        // create (+ publish if not draft)
         const result = await api("articles", {
           title:              txTitle,
           content:            txBody,
@@ -172,16 +270,19 @@ export function init(sdk) {
     btn.disabled = false; btn.textContent = "🚀 Publish";
   });
 
-  // ── reset ──
+  // ── reset ──────────────────────────────────────────────────────────────────
   el("reset-btn").addEventListener("click", () => {
-    el("title").value = ""; el("body").value = ""; el("ai-prompt").value = "";
+    el("title").value = "";
+    el("ai-prompt").value = "";
+    el("ai-url").value = "";
+    if (quill) quill.setContents([]);
     selectedLangs = new Set(["en"]); renderChips(); updateWordCount();
     hideOk(); hideError();
-    el("progress").style.display  = "none";
+    el("progress").style.display = "none";
     el("reset-btn").style.display = "none";
   });
 
-  // ── helpers ──
+  // ── helpers ────────────────────────────────────────────────────────────────
   function renderProgress(jobs, isDraft) {
     el("progress").style.display = "block";
     el("progress-rows").innerHTML = jobs.map(j => {
@@ -191,8 +292,7 @@ export function init(sdk) {
                   : j.status==="working"?`→ ${isDraft?"saving draft…":"publishing…"}`
                   : j.status==="done"?(isDraft?"✓ Saved as draft":"✓ Published")
                   : j.err;
-      const link = j.link
-        ? `<a href="${j.link}" target="_blank" style="margin-left:auto;color:#6366f1;font-size:11px">View →</a>` : "";
+      const link  = j.link ? `<a href="${j.link}" target="_blank" style="margin-left:auto;color:#6366f1;font-size:11px">View →</a>` : "";
       return `<div class="prow">
         <div class="dot" style="background:${color};${anim}"></div>
         <span style="min-width:90px">${j.f} ${j.l}</span>
@@ -204,10 +304,22 @@ export function init(sdk) {
   function showError(msg) { const b = el("error-box"); b.textContent = msg; b.style.display = "block"; }
   function hideError()    { el("error-box").style.display = "none"; }
   function showOk(msg)    { const b = el("ok-box");    b.textContent = msg; b.style.display = "block"; }
-  function hideOk()       { el("ok-box").style.display  = "none"; }
+  function hideOk()       { el("ok-box").style.display = "none"; }
 
   sdk.on("propsChanged", () => {
     const p = sdk.getProps();
     baseUrl = (p.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
   });
+
+  // ── init ───────────────────────────────────────────────────────────────────
+  renderChips();
+  loadCategories();
+  el("reload-cats-btn").addEventListener("click", loadCategories);
+
+  // Quill loads from CDN — wait for it then init
+  function waitForQuill(tries) {
+    if (window.Quill) { initQuill(); return; }
+    if (tries > 0) setTimeout(() => waitForQuill(tries - 1), 200);
+  }
+  waitForQuill(20);
 }
