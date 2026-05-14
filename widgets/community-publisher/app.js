@@ -89,12 +89,16 @@ export function init(sdk) {
   // ── AI generate ──
   el("ai-btn").addEventListener("click", async () => {
     const prompt = el("ai-prompt").value.trim();
-    if (!prompt) return;
+    const url    = el("ai-url").value.trim();
+    if (!prompt && !url) { const b = el("ai-err"); b.textContent = "Enter a topic or paste a URL."; b.style.display = "block"; return; }
     const btn = el("ai-btn");
     btn.disabled = true; btn.textContent = "✦ Generating…";
     el("ai-err").style.display = "none";
     try {
-      const data = await api("generate", { prompt });
+      const params = {};
+      if (prompt) params.prompt = prompt;
+      if (url)    params.url    = url;
+      const data = await api("generate", params);
       if (data.error) throw new Error(data.error);
       el("title").value = data.title || "";
       el("body").value  = data.body  || "";
@@ -102,7 +106,7 @@ export function init(sdk) {
     } catch (e) {
       const b = el("ai-err"); b.textContent = "AI error: " + e.message; b.style.display = "block";
     } finally {
-      btn.disabled = false; btn.textContent = "✦ Generate";
+      btn.disabled = false; btn.textContent = "✦ Generate article";
     }
   });
 
