@@ -14,19 +14,20 @@ const TX_NAMES = {
   ja:"Japanese", ko:"Korean", zh:"Simplified Chinese",
 };
 
-// Single connector permalink — one entry in Gainsight, points to your Railway server
 const CONNECTOR = "community-publisher";
 
 export function init(sdk) {
   const props   = sdk.getProps();
   let baseUrl = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
 
-  // All API calls go through one helper — action routes to the right /widget handler
+  // Gainsight SDK: use window.WidgetServiceSDK for connector calls (sdk param is widget context only)
+  // Per docs: payload (not body) is the correct field name
   async function api(action, params) {
-    return sdk.connectors.execute({
+    const connSdk = (sdk.connectors) ? sdk : new window.WidgetServiceSDK();
+    return connSdk.connectors.execute({
       permalink: CONNECTOR,
       method:    "POST",
-      body:      { action, ...params },
+      payload:   { action, ...params },
     });
   }
 
