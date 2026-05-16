@@ -24,12 +24,20 @@
             "label": "Support Email",
             "description": "Email shown in the AI translation disclaimer appended to translated articles",
             "defaultValue": ""
+          },
+          {
+            "name": "defaultCategories",
+            "type": "text",
+            "label": "Default Category IDs per Language",
+            "description": "JSON map of language code → category ID. E.g. {\"fr\":69,\"es\":42,\"de\":15}. Get IDs from community URLs like /knowledgebase-69. These are auto-selected in each language dropdown.",
+            "defaultValue": "{}"
           }
         ]
       },
       "defaultConfig": {
         "communityBaseUrl": "",
-        "supportEmail": ""
+        "supportEmail": "",
+        "defaultCategories": "{}"
       }
     }
   ]

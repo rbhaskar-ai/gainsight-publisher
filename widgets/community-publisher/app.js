@@ -139,12 +139,66 @@ export function init(sdk) {
   }
 
   // ── per-language category sections ────────────────────────────────────────
-  // The inSided v2 API has no language filter on /v2/categories — all sections
-  // (English, French, Spanish…) are returned in a single list. We load once,
-  // cache, and populate every language dropdown from the same data so the user
-  // can pick the right section per language (e.g. "Community French Articles"
-  // for French, "Knowledge Base" for English).
-  let _catCache = null;
+  // Auto-selection priority (resolveDefaultCat):
+  //   1. Widget props  — defaultCategories = '{"fr":69,"es":42}'  (admin-configured, always wins)
+  //   2. Auto-detect  — scan category/parent names for language keywords (zero-config)
+  //   3. Remembered   — localStorage, saved from the user's last manual pick per community
+
+  const LANG_KEYWORDS = {
+    fr: ["french", "français", "francais"],
+    es: ["spanish", "español", "espanol"],
+    de: ["german", "deutsch"],
+    pt: ["portuguese", "português", "portugues", "brazil", "brasil"],
+    ja: ["japanese", "日本語", "japan"],
+    ko: ["korean", "한국어", "korea"],
+    zh: ["chinese", "中文", "simplified", "mandarin"],
+  };
+
+  let _catCache   = null;
+  let _defCatsMap = {};
+  try { _defCatsMap = JSON.parse(props.defaultCategories || "{}"); } catch {}
+
+  function _catPrefsKey() {
+    return `cp_cats_${(baseUrl || "x").replace(/[^a-z0-9]/gi, "_").substring(0, 40)}`;
+  }
+  function saveCatPref(lang, catId) {
+    try {
+      const p = JSON.parse(localStorage.getItem(_catPrefsKey()) || "{}");
+      if (catId) p[lang] = String(catId); else delete p[lang];
+      localStorage.setItem(_catPrefsKey(), JSON.stringify(p));
+    } catch {}
+  }
+  function loadCatPref(lang) {
+    try { return JSON.parse(localStorage.getItem(_catPrefsKey()) || "{}")?.[lang] || null; }
+    catch { return null; }
+  }
+
+  function autoDetectCat(lang, list) {
+    const kws = LANG_KEYWORDS[lang];
+    if (!kws) return null;
+    const byId = Object.fromEntries(list.map(c => [c.id, c]));
+    const pid  = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
+    const nm   = c => (c.name || c.title || "").toLowerCase();
+    const hit  = s => kws.some(k => s.includes(k));
+    // Prefer leaf categories whose PARENT name contains the language keyword
+    // e.g. "Knowledgebase" under "Community French Articles" → pick for French
+    for (const c of list) {
+      const par = byId[pid(c)];
+      if (par && hit(nm(par))) return String(c.id);
+    }
+    // Fall back: category name itself contains the keyword
+    for (const c of list) { if (hit(nm(c))) return String(c.id); }
+    return null;
+  }
+
+  function resolveDefaultCat(lang, list) {
+    if (_defCatsMap[lang]) return { id: String(_defCatsMap[lang]), src: "cfg"  };
+    const det = autoDetectCat(lang, list);
+    if (det)              return { id: det,                        src: "auto" };
+    const mem = loadCatPref(lang);
+    if (mem)              return { id: mem,                        src: "mem"  };
+    return null;
+  }
 
   async function fetchAllCategories() {
     if (_catCache) return _catCache;
@@ -174,38 +228,50 @@ export function init(sdk) {
       return;
     }
 
-    // Build a hierarchy so French categories like "Community French Articles > Knowledgebase"
-    // show grouped under their parent. IDs are shown to match community URLs (e.g. /knowledgebase-69).
+    // Build optgroup hierarchy: parent sections become group headers,
+    // children show as "Name (ID: 69)" so user can match to community URLs.
     const label = c => c.name || c.title || ("Category " + c.id);
     const pid   = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
-
-    const byId     = Object.fromEntries(list.map(c => [c.id, c]));
-    const children = {};    // parentId → [child, ...]
-    const roots    = [];
-
+    const byId  = Object.fromEntries(list.map(c => [c.id, c]));
+    const kids  = {};
+    const roots = [];
     for (const c of list) {
       const p = pid(c);
-      if (p && byId[p]) {
-        (children[p] = children[p] || []).push(c);
-      } else {
-        roots.push(c);
-      }
+      p && byId[p] ? (kids[p] = kids[p] || []).push(c) : roots.push(c);
     }
 
     let html = `<option value="">— Select ${l.l} section —</option>`;
     for (const r of roots) {
-      const kids = children[r.id];
-      if (kids?.length) {
+      const cs = kids[r.id];
+      if (cs?.length) {
         html += `<optgroup label="${label(r)}">`;
-        for (const k of kids) {
-          html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
-        }
+        for (const k of cs) html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
         html += `</optgroup>`;
       } else {
         html += `<option value="${r.id}">${label(r)} (ID: ${r.id})</option>`;
       }
     }
     sel.innerHTML = html;
+
+    // Auto-select via the three-layer resolution
+    const def = resolveDefaultCat(lang, list);
+    if (def) {
+      sel.value = def.id;
+      const badge = def.src === "cfg"  ? { t: "Configured",   c: "#16a34a" }
+                  : def.src === "auto" ? { t: "Auto-detected", c: "#2563eb" }
+                  :                      { t: "Remembered",    c: "#9ca3af" };
+      const badgeId = `cat-badge-${lang}`;
+      sdk.$(`#${badgeId}`)?.remove();
+      sel.insertAdjacentHTML("afterend",
+        `<div id="${badgeId}" style="font-size:10px;color:${badge.c};margin-top:3px">✓ ${badge.t}</div>`
+      );
+    }
+
+    // Save every manual change to localStorage (becomes "Remembered" next session)
+    sel.addEventListener("change", () => {
+      saveCatPref(lang, sel.value || null);
+      sdk.$(`#cat-badge-${lang}`)?.remove();
+    });
   }
 
   async function renderLangSections() {
@@ -464,6 +530,7 @@ export function init(sdk) {
     const p = sdk.getProps();
     baseUrl = (p.communityBaseUrl || "").replace(/\/$/, "");
     supportEmail = p.supportEmail || "";
+    try { _defCatsMap = JSON.parse(p.defaultCategories || "{}"); } catch { _defCatsMap = {}; }
   });
 
   // ── search (Feature 2) ────────────────────────────────────────────────────
