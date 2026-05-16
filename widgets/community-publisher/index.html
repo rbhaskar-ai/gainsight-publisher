@@ -230,14 +230,15 @@
       </div>
     </div>
 
-    <!-- Section + draft -->
+    <!-- Section per language + draft -->
     <div class="card">
       <div class="card-head">
-        <span class="card-title">Community section</span>
+        <span class="card-title">Community sections</span>
         <button class="btn btn-sm" id="reload-cats-btn">↻ Refresh</button>
       </div>
-      <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
-        <select id="category-select"><option value="">Loading sections…</option></select>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <!-- Per-language section dropdowns rendered here by app.js -->
+        <div id="lang-sections-body"></div>
         <hr>
         <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin:0">
           <input type="checkbox" id="draft-toggle" checked style="width:15px;height:15px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0">

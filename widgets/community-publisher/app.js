@@ -133,31 +133,56 @@ export function init(sdk) {
         if (c === "en") return;
         selectedLangs.has(c) ? selectedLangs.delete(c) : selectedLangs.add(c);
         renderChips();
+        renderLangSections();
       });
     });
   }
 
-  // ── categories ────────────────────────────────────────────────────────────
-  async function loadCategories() {
-    const sel = el("category-select");
-    sel.innerHTML = `<option value="">Loading sections…</option>`;
-    const existing = sdk.$(`#cat-manual-wrap`);
-    if (existing) existing.remove();
+  // ── per-language category sections ────────────────────────────────────────
+  async function loadCategoriesForLang(lang) {
+    const sel = sdk.$(`#cat-select-${lang}`);
+    if (!sel) return;
+    const l = LANGS.find(x => x.c === lang);
+    sel.innerHTML = `<option value="">Loading ${l.l} sections…</option>`;
     try {
-      const data = await api("categories");
+      const data = await api("categories", { lang });
       const list = Array.isArray(data) ? data : (data.items || data.result || []);
-      if (!list.length) throw new Error("Empty");
-      sel.innerHTML = `<option value="">— Select a section —</option>` +
-        list.map(c => `<option value="${c.id}">${c.name || c.title || "Category " + c.id}</option>`).join("");
-    } catch (e) {
-      sel.innerHTML = `<option value="">Could not load — enter ID below</option>`;
-      sel.insertAdjacentHTML("afterend",
-        `<div id="cat-manual-wrap" style="margin-top:8px">
-          <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Category ID</div>
-          <input type="text" id="cat-manual" placeholder="e.g. 17  (Control Panel → Categories URL)" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;color:#111827;background:#fff">
-          <div style="font-size:11px;color:#9ca3af;margin-top:5px">Go to Control Panel → Categories → click any category → copy the ID from the URL</div>
-        </div>`);
+      if (!list.length) throw new Error("empty");
+      sel.innerHTML = `<option value="">— Select a ${l.l} section —</option>` +
+        list.map(c => `<option value="${c.id}">${c.name || c.title || "Section " + c.id}</option>`).join("");
+    } catch {
+      sel.innerHTML = `<option value="">Could not load — enter ID manually</option>`;
+      const manualId = `cat-manual-${lang}`;
+      if (!sdk.$(`#${manualId}`)) {
+        sel.insertAdjacentHTML("afterend",
+          `<input type="text" id="${manualId}" placeholder="Paste section ID from URL (e.g. 69)"
+            style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:inherit;margin-top:5px">`
+        );
+      }
     }
+  }
+
+  function renderLangSections() {
+    const body = el("lang-sections-body");
+    if (!body) return;
+    body.innerHTML = [...selectedLangs].map(lang => {
+      const l = LANGS.find(x => x.c === lang);
+      return `<div style="margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;display:flex;align-items:center;gap:5px">
+          ${l.f} ${l.l}
+        </div>
+        <select id="cat-select-${lang}" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;color:#111827;background:#fff">
+          <option value="">Loading…</option>
+        </select>
+      </div>`;
+    }).join("");
+    [...selectedLangs].forEach(lang => loadCategoriesForLang(lang));
+  }
+
+  function getCatId(lang) {
+    const sel = sdk.$(`#cat-select-${lang}`);
+    const man = sdk.$(`#cat-manual-${lang}`);
+    return (sel?.value && sel.value !== "") ? sel.value : (man?.value?.trim() || "");
   }
 
   // ── AI generate ───────────────────────────────────────────────────────────
@@ -219,18 +244,22 @@ export function init(sdk) {
     const title   = el("title").value.trim();
     const bodyHtml = rawBodyHtml || (quill ? quill.root.innerHTML : "");
     const isDraft  = el("draft-toggle").checked;
-    const catSel   = el("category-select");
-    const catMan   = sdk.$(`#cat-manual`);
-    const catId    = (catSel?.value && catSel.value !== "") ? catSel.value : (catMan?.value?.trim() || "");
 
     hideError(); hideOk();
     if (!title || !bodyHtml || bodyHtml === "<p><br></p>") { showError("Add a title and body first."); return; }
-    if (!catId) { showError("Select or enter a community section."); return; }
+
+    const langs = Array.from(selectedLangs);
+    for (const lang of langs) {
+      if (!getCatId(lang)) {
+        const l = LANGS.find(x => x.c === lang);
+        showError(`Select a community section for ${l.l}.`);
+        return;
+      }
+    }
 
     const btn = el("publish-btn");
     btn.disabled = true; btn.textContent = "Publishing…";
 
-    const langs = Array.from(selectedLangs);
     const jobs  = langs.map(c => { const l = LANGS.find(x => x.c === c); return { c, l:l.l, f:l.f, status:"pending", link:null, err:null }; });
     renderProgress(jobs, isDraft);
 
@@ -251,7 +280,7 @@ export function init(sdk) {
         const result = await api("articles", {
           title:              txTitle,
           content:            txBody,
-          categoryId:         parseInt(catId),
+          categoryId:         parseInt(getCatId(jobs[i].c)),
           publishAfterCreate: !isDraft,
           lang:               jobs[i].c,
           originalTitle:      title,
@@ -301,7 +330,7 @@ export function init(sdk) {
     el("clear-import-btn").style.display = "none";
     el("editor-wrap").style.display = "block";
     if (quill) quill.setContents([]);
-    selectedLangs = new Set(["en"]); renderChips(); updateWordCount();
+    selectedLangs = new Set(["en"]); renderChips(); renderLangSections(); updateWordCount();
     hideOk(); hideError();
     el("progress").style.display = "none";
     el("reset-btn").style.display = "none";
@@ -488,9 +517,9 @@ export function init(sdk) {
 
   // ── init ───────────────────────────────────────────────────────────────────
   renderChips();
-  loadCategories();
+  renderLangSections();
   loadLangStats();
-  el("reload-cats-btn").addEventListener("click", loadCategories);
+  el("reload-cats-btn").addEventListener("click", renderLangSections);
 
   // Quill loads from CDN — wait for it then init
   function waitForQuill(tries) {
