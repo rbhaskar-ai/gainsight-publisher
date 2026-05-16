@@ -173,8 +173,39 @@ export function init(sdk) {
       }
       return;
     }
-    sel.innerHTML = `<option value="">— Select ${l.l} section —</option>` +
-      list.map(c => `<option value="${c.id}">${c.name || c.title || "Section " + c.id}</option>`).join("");
+
+    // Build a hierarchy so French categories like "Community French Articles > Knowledgebase"
+    // show grouped under their parent. IDs are shown to match community URLs (e.g. /knowledgebase-69).
+    const label = c => c.name || c.title || ("Category " + c.id);
+    const pid   = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
+
+    const byId     = Object.fromEntries(list.map(c => [c.id, c]));
+    const children = {};    // parentId → [child, ...]
+    const roots    = [];
+
+    for (const c of list) {
+      const p = pid(c);
+      if (p && byId[p]) {
+        (children[p] = children[p] || []).push(c);
+      } else {
+        roots.push(c);
+      }
+    }
+
+    let html = `<option value="">— Select ${l.l} section —</option>`;
+    for (const r of roots) {
+      const kids = children[r.id];
+      if (kids?.length) {
+        html += `<optgroup label="${label(r)}">`;
+        for (const k of kids) {
+          html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
+        }
+        html += `</optgroup>`;
+      } else {
+        html += `<option value="${r.id}">${label(r)} (ID: ${r.id})</option>`;
+      }
+    }
+    sel.innerHTML = html;
   }
 
   async function renderLangSections() {
