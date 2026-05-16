@@ -18,7 +18,8 @@ const CONNECTOR = "community-publisher";
 
 export function init(sdk) {
   const props  = sdk.getProps();
-  let baseUrl  = (props.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
+  let baseUrl  = (props.communityBaseUrl || "").replace(/\/$/, "");
+  let supportEmail = props.supportEmail || "";
 
   async function api(action, params) {
     const connSdk = (sdk.connectors) ? sdk : new window.WidgetServiceSDK();
@@ -190,7 +191,12 @@ export function init(sdk) {
   });
 
   // ── AI disclaimer appended to all translated articles ─────────────────────
-  const AI_DISCLAIMER = `<p><br></p><p>---</p><p><em>🤖 <strong>AI Translation Notice:</strong> This article has been automatically translated from English using AI. If you find any inaccuracies, please report them to <a href="mailto:community@netskope.com">community@netskope.com</a>.</em></p>`;
+  function buildDisclaimer() {
+    const contact = supportEmail
+      ? ` Please report any inaccuracies to <a href="mailto:${supportEmail}">${supportEmail}</a>.`
+      : "";
+    return `<p><br></p><p>---</p><p><em>🤖 <strong>AI Translation Notice:</strong> This article has been automatically translated from English using AI.${contact}</em></p>`;
+  }
 
   // ── translation helpers ───────────────────────────────────────────────────
   // Extract <img> tags, replace with placeholders, translate text, restore images
@@ -239,7 +245,7 @@ export function init(sdk) {
           const tx = await api("translate", { targetLang: TX_NAMES[jobs[i].c], title, body: withPlaceholders });
           if (tx.error) throw new Error(tx.error);
           txTitle = tx.title;
-          txBody = restoreImgs(tx.body, imgs) + AI_DISCLAIMER;
+          txBody = restoreImgs(tx.body, imgs) + buildDisclaimer();
         }
 
         const result = await api("articles", {
@@ -369,7 +375,8 @@ export function init(sdk) {
 
   sdk.on("propsChanged", () => {
     const p = sdk.getProps();
-    baseUrl = (p.communityBaseUrl || "https://netskope-us-sandbox-community.insided.com").replace(/\/$/, "");
+    baseUrl = (p.communityBaseUrl || "").replace(/\/$/, "");
+    supportEmail = p.supportEmail || "";
   });
 
   // ── init ───────────────────────────────────────────────────────────────────

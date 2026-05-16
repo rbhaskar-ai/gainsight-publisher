@@ -12,24 +12,24 @@
       "configuration": {
         "properties": [
           {
-            "name": "authorId",
-            "type": "text",
-            "label": "Author User ID",
-            "description": "Numeric user ID from Control Users",
-            "defaultValue": "2011"
-          },
-          {
             "name": "communityBaseUrl",
             "type": "text",
             "label": "Community Base URL",
-            "description": "Base URL shown in article View links",
-            "defaultValue": "https://netskope-us-sandbox-community.insided.com"
+            "description": "Base URL of your community (e.g. https://community.yourcompany.com) — used for View links after publishing",
+            "defaultValue": ""
+          },
+          {
+            "name": "supportEmail",
+            "type": "text",
+            "label": "Support Email",
+            "description": "Email shown in the AI translation disclaimer appended to translated articles",
+            "defaultValue": ""
           }
         ]
       },
       "defaultConfig": {
-        "authorId": "2011",
-        "communityBaseUrl": "https://netskope-us-sandbox-community.insided.com"
+        "communityBaseUrl": "",
+        "supportEmail": ""
       }
     }
   ]
