@@ -139,10 +139,20 @@ export function init(sdk) {
   }
 
   // ── per-language category sections ────────────────────────────────────────
-  // Auto-selection priority (resolveDefaultCat):
-  //   1. Widget props  — defaultCategories = '{"fr":69,"es":42}'  (admin-configured, always wins)
-  //   2. Auto-detect  — scan category/parent names for language keywords (zero-config)
-  //   3. Remembered   — localStorage, saved from the user's last manual pick per community
+  // Language detection: inSided returns one flat list for all languages.
+  // We detect which language each category belongs to via:
+  //   1. Unicode script ranges  (Japanese kana, Korean hangul, CJK)
+  //   2. Distinctive diacritics (ß→de, ñ→es, ã/õ→pt, à/â/ç/ê/œ→fr, ä/ö/ü→de)
+  //   3. English keywords in name/parent  ("french", "español", etc.)
+  //   4. null = neutral / English (shown only in English dropdown)
+  //
+  // Each dropdown shows ONLY the categories detected for that language
+  // (+ neutral/English as fallback if nothing language-specific is found).
+  //
+  // Auto-selection priority inside each filtered dropdown:
+  //   A. Widget props  defaultCategories = '{"fr":69,"es":42}'  (admin, always wins)
+  //   B. Auto-detect   first match in filtered list
+  //   C. Remembered    localStorage, saved from last manual pick
 
   const LANG_KEYWORDS = {
     fr: ["french", "français", "francais"],
@@ -153,6 +163,46 @@ export function init(sdk) {
     ko: ["korean", "한국어", "korea"],
     zh: ["chinese", "中文", "simplified", "mandarin"],
   };
+
+  // Returns a language code or null (= English / unknown).
+  function detectTextLang(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    // Unambiguous Unicode scripts
+    if (/[぀-ヿ]/.test(text))  return "ja";  // Hiragana / Katakana
+    if (/[가-힯]/.test(text))  return "ko";  // Hangul
+    if (/[一-鿿]/.test(text))  return "zh";  // CJK
+    // Distinctive single characters (most reliable for Latin scripts)
+    if (/[ß]/.test(text))              return "de";
+    if (/[ñ]/.test(text))              return "es";
+    if (/[ãõ]/.test(text))             return "pt";
+    if (/[àâçèêëîïôùûüÿœæ]/.test(text)) return "fr";
+    if (/[äöü]/.test(text))            return "de";
+    if (/[áéíóú]/.test(text))          return "es";  // generic accented vowels → assume Spanish
+    // English keywords in the category name itself
+    for (const [lang, kws] of Object.entries(LANG_KEYWORDS)) {
+      if (kws.some(k => lower.includes(k))) return lang;
+    }
+    return null;
+  }
+
+  // Returns detected language for a category, checking parent name first.
+  function catLang(c, byId) {
+    const pid = c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
+    const par = pid && byId[pid];
+    return (par && detectTextLang(par.name || par.title || ""))
+        || detectTextLang(c.name || c.title || "");
+  }
+
+  // Returns the subset of `list` relevant for `lang`.
+  // English gets neutral (undetected) categories.
+  // Other languages get their own detected categories; falls back to full list
+  // if none found (e.g. all categories still use English names).
+  function filterForLang(lang, list, byId) {
+    if (lang === "en") return list.filter(c => !catLang(c, byId));
+    const matched = list.filter(c => catLang(c, byId) === lang);
+    return matched.length ? matched : list; // fallback: show all
+  }
 
   let _catCache   = null;
   let _defCatsMap = {};
@@ -173,30 +223,12 @@ export function init(sdk) {
     catch { return null; }
   }
 
-  function autoDetectCat(lang, list) {
-    const kws = LANG_KEYWORDS[lang];
-    if (!kws) return null;
-    const byId = Object.fromEntries(list.map(c => [c.id, c]));
-    const pid  = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
-    const nm   = c => (c.name || c.title || "").toLowerCase();
-    const hit  = s => kws.some(k => s.includes(k));
-    // Prefer leaf categories whose PARENT name contains the language keyword
-    // e.g. "Knowledgebase" under "Community French Articles" → pick for French
-    for (const c of list) {
-      const par = byId[pid(c)];
-      if (par && hit(nm(par))) return String(c.id);
-    }
-    // Fall back: category name itself contains the keyword
-    for (const c of list) { if (hit(nm(c))) return String(c.id); }
-    return null;
-  }
-
-  function resolveDefaultCat(lang, list) {
-    if (_defCatsMap[lang]) return { id: String(_defCatsMap[lang]), src: "cfg"  };
-    const det = autoDetectCat(lang, list);
-    if (det)              return { id: det,                        src: "auto" };
+  // Returns { id, src } for the best pre-selection, or null.
+  function resolveDefaultCat(lang, filtered) {
+    if (_defCatsMap[lang])     return { id: String(_defCatsMap[lang]),  src: "cfg"  };
+    if (filtered[0])           return { id: String(filtered[0].id),     src: "auto" };
     const mem = loadCatPref(lang);
-    if (mem)              return { id: mem,                        src: "mem"  };
+    if (mem)                   return { id: mem,                         src: "mem"  };
     return null;
   }
 
@@ -212,11 +244,11 @@ export function init(sdk) {
     return list;
   }
 
-  function fillCatSelect(lang, list) {
+  function fillCatSelect(lang, fullList) {
     const sel = sdk.$(`#cat-select-${lang}`);
     if (!sel) return;
     const l = LANGS.find(x => x.c === lang);
-    if (!list.length) {
+    if (!fullList.length) {
       sel.innerHTML = `<option value="">Could not load — enter ID manually</option>`;
       const manualId = `cat-manual-${lang}`;
       if (!sdk.$(`#${manualId}`)) {
@@ -228,33 +260,37 @@ export function init(sdk) {
       return;
     }
 
-    // Build optgroup hierarchy: parent sections become group headers,
-    // children show as "Name (ID: 69)" so user can match to community URLs.
-    const label = c => c.name || c.title || ("Category " + c.id);
-    const pid   = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
-    const byId  = Object.fromEntries(list.map(c => [c.id, c]));
-    const kids  = {};
-    const roots = [];
-    for (const c of list) {
-      const p = pid(c);
-      p && byId[p] ? (kids[p] = kids[p] || []).push(c) : roots.push(c);
+    const byId    = Object.fromEntries(fullList.map(c => [c.id, c]));
+    const display = filterForLang(lang, fullList, byId);  // language-filtered list
+    const label   = c => c.name || c.title || ("Category " + c.id);
+    const pidOf   = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
+
+    // Group display items by parent so they appear under optgroup headers
+    const byParent = {};
+    const noParent = [];
+    for (const c of display) {
+      const p = pidOf(c);
+      p && byId[p] ? (byParent[p] = byParent[p] || []).push(c) : noParent.push(c);
     }
 
     let html = `<option value="">— Select ${l.l} section —</option>`;
-    for (const r of roots) {
-      const cs = kids[r.id];
-      if (cs?.length) {
-        html += `<optgroup label="${label(r)}">`;
-        for (const k of cs) html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
+    const shownParents = new Set();
+    for (const c of display) {
+      const p = pidOf(c);
+      if (p && byId[p] && !shownParents.has(p)) {
+        shownParents.add(p);
+        html += `<optgroup label="${label(byId[p])}">`;
+        for (const k of byParent[p]) html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
         html += `</optgroup>`;
-      } else {
-        html += `<option value="${r.id}">${label(r)} (ID: ${r.id})</option>`;
       }
+    }
+    for (const c of noParent) {
+      html += `<option value="${c.id}">${label(c)} (ID: ${c.id})</option>`;
     }
     sel.innerHTML = html;
 
-    // Auto-select via the three-layer resolution
-    const def = resolveDefaultCat(lang, list);
+    // Auto-select: props config → first in filtered list → remembered
+    const def = resolveDefaultCat(lang, display);
     if (def) {
       sel.value = def.id;
       const badge = def.src === "cfg"  ? { t: "Configured",   c: "#16a34a" }
@@ -267,7 +303,7 @@ export function init(sdk) {
       );
     }
 
-    // Save every manual change to localStorage (becomes "Remembered" next session)
+    // Remember every manual pick (becomes layer C next session)
     sel.addEventListener("change", () => {
       saveCatPref(lang, sel.value || null);
       sdk.$(`#cat-badge-${lang}`)?.remove();
