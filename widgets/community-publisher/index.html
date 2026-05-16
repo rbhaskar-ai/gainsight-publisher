@@ -181,8 +181,25 @@
           <div style="margin-top:8px;padding:10px 13px;background:#f0fdf4;border:1px dashed #86efac;border-radius:7px;font-size:11px;color:#166534;line-height:1.6">
             🤖 <strong>Auto-appended to translated versions:</strong> This article has been automatically translated from English using AI. If you find any inaccuracies, please report them to <a href="mailto:community@netskope.com" style="color:#166534">community@netskope.com</a>.
           </div>
-          <div style="margin-top:8px">
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <button class="btn btn-sm" id="html-toggle-btn" type="button">⬇ Import article</button>
+            <button class="btn btn-sm" id="search-toggle-btn" type="button">🔍 Search community</button>
+          </div>
+          <!-- Search community (Feature 2) -->
+          <div id="search-wrap" style="display:none;margin-top:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+            <div style="padding:9px 14px;background:#f9fafb;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em">🔍 Search community articles</span>
+              <span style="font-size:11px;color:#9ca3af">— check if a translation already exists</span>
+            </div>
+            <div style="padding:12px 14px">
+              <div style="display:flex;gap:6px;margin-bottom:8px">
+                <input type="text" id="search-q" placeholder="Search by title or keyword…" style="flex:1;font-size:12px">
+                <button class="btn btn-sm btn-ai" id="search-btn" style="white-space:nowrap;font-size:11px">Search →</button>
+              </div>
+              <div id="search-results" style="font-size:12px;line-height:1.6"></div>
+            </div>
+          </div>
+          <div style="margin-top:0px">
             <div id="html-source-wrap" style="display:none;margin-top:8px;display:none;flex-direction:column;gap:8px">
               <div>
                 <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Import from URL</div>
@@ -246,6 +263,17 @@
     <div style="display:flex;gap:10px;align-items:center;padding-bottom:8px">
       <button class="btn btn-primary" id="publish-btn">🚀 Publish</button>
       <button class="btn" id="reset-btn" style="display:none">+ New article</button>
+    </div>
+
+    <!-- Language coverage dashboard (Feature 4) -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📊 Language coverage</span>
+        <button class="btn btn-sm" id="lang-stats-refresh" style="font-size:10px">↻ Refresh</button>
+      </div>
+      <div class="card-body" id="lang-stats-body">
+        <div style="font-size:12px;color:#9ca3af;text-align:center;padding:4px 0">Loading…</div>
+      </div>
     </div>
 
   </div>

@@ -253,6 +253,8 @@ export function init(sdk) {
           content:            txBody,
           categoryId:         parseInt(catId),
           publishAfterCreate: !isDraft,
+          lang:               jobs[i].c,
+          originalTitle:      title,
         });
         if (result.error) throw new Error(result.error);
         if (!result.id)   throw new Error("No article ID returned");
@@ -267,10 +269,15 @@ export function init(sdk) {
 
     const doneCount = jobs.filter(j => j.status === "done").length;
     if (doneCount > 0) {
+      const linkItems = jobs
+        .filter(j => j.status === "done" && j.link)
+        .map(j => `<a href="${j.link}" target="_blank" style="color:#166534;font-weight:600;text-decoration:underline">${j.f} View ${j.l} →</a>`)
+        .join("&nbsp;&nbsp;");
       showOk(
-        `${isDraft ? "📝 Saved as draft" : "🎉 Published"}: "${title}" in ` +
+        `${isDraft ? "📝 Saved as draft" : "🎉 Published"}: <strong>${title}</strong> in ` +
         `${doneCount} language${doneCount > 1 ? "s" : ""}.` +
-        (isDraft ? " Go to Control → Content → Articles to publish." : "")
+        (isDraft ? " Go to Control → Content → Articles to publish." : "") +
+        (linkItems ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">${linkItems}</div>` : "")
       );
       el("reset-btn").style.display = "inline-flex";
     }
@@ -284,6 +291,9 @@ export function init(sdk) {
     el("ai-url").value = "";
     sdk.$(`#html-source`).value = "";
     sdk.$(`#import-url`).value = "";
+    sdk.$(`#search-q`).value = "";
+    el("search-results").innerHTML = "";
+    el("search-wrap").style.display = "none";
     el("html-source-wrap").style.display = "none";
     rawBodyHtml = null;
     el("imported-preview").style.display = "none";
@@ -370,7 +380,7 @@ export function init(sdk) {
 
   function showError(msg) { const b = el("error-box"); b.textContent = msg; b.style.display = "block"; }
   function hideError()    { el("error-box").style.display = "none"; }
-  function showOk(msg)    { const b = el("ok-box");    b.textContent = msg; b.style.display = "block"; }
+  function showOk(msg)    { const b = el("ok-box");    b.innerHTML  = msg; b.style.display = "block"; }
   function hideOk()       { el("ok-box").style.display = "none"; }
 
   sdk.on("propsChanged", () => {
@@ -379,9 +389,107 @@ export function init(sdk) {
     supportEmail = p.supportEmail || "";
   });
 
+  // ── search (Feature 2) ────────────────────────────────────────────────────
+  el("search-toggle-btn").addEventListener("click", () => {
+    const wrap = el("search-wrap");
+    const visible = wrap.style.display === "block";
+    wrap.style.display = visible ? "none" : "block";
+    if (!visible) setTimeout(() => sdk.$(`#search-q`).focus(), 50);
+  });
+
+  async function doSearch() {
+    const q = sdk.$(`#search-q`).value.trim();
+    if (!q) return;
+    const btn     = el("search-btn");
+    const results = el("search-results");
+    btn.disabled = true; btn.textContent = "Searching…";
+    results.innerHTML = `<div style="color:#9ca3af;padding:4px 0">Searching…</div>`;
+    try {
+      const data = await api("search-articles", { q });
+      if (data.error) throw new Error(data.error);
+      if (!data.results?.length) {
+        results.innerHTML = `<div style="color:#9ca3af;padding:4px 0">No articles found for "<em>${q}</em>".</div>`;
+      } else {
+        results.innerHTML = data.results.map(r => {
+          const href = r.url ? (baseUrl + r.url) : "#";
+          return `<div style="padding:6px 0;border-bottom:1px solid #f3f4f6">
+            <a href="${href}" target="_blank" style="color:#4f46e5;font-weight:500">${r.title}</a>
+            ${r.categoryName ? `<span style="color:#9ca3af;font-size:11px;margin-left:6px">· ${r.categoryName}</span>` : ""}
+            ${r.snippet ? `<div style="color:#6b7280;font-size:11px;margin-top:1px">${r.snippet}</div>` : ""}
+          </div>`;
+        }).join("");
+      }
+    } catch (e) {
+      results.innerHTML = `<div style="color:#dc2626;font-size:11px">Search error: ${e.message}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = "Search →";
+    }
+  }
+  el("search-btn").addEventListener("click", doSearch);
+  sdk.$(`#search-q`).addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+
+  // ── language stats (Feature 4) ────────────────────────────────────────────
+  const FLAGS = { en:"🇺🇸", es:"🇪🇸", fr:"🇫🇷", de:"🇩🇪", pt:"🇧🇷", ja:"🇯🇵", ko:"🇰🇷", zh:"🇨🇳" };
+
+  async function loadLangStats() {
+    const body = el("lang-stats-body");
+    if (!body) return;
+    body.innerHTML = `<div style="font-size:12px;color:#9ca3af;text-align:center;padding:4px 0">Loading…</div>`;
+    try {
+      const data = await api("language-stats");
+      if (!data.languages?.length) {
+        body.innerHTML = `<div style="font-size:12px;color:#9ca3af;text-align:center;padding:4px 0">No articles published yet through this agent.</div>`;
+        return;
+      }
+      body.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px" id="lang-stat-chips">
+          ${data.languages.map(l => `
+            <button class="chip" data-lang="${l.lang}" style="font-size:12px">
+              ${FLAGS[l.lang] || "🌐"} ${l.label} <strong style="color:#7c3aed;margin-left:3px">${l.count}</strong>
+            </button>`).join("")}
+        </div>
+        <div id="lang-articles-list"></div>`;
+
+      body.querySelectorAll(".chip[data-lang]").forEach(chip => {
+        chip.addEventListener("click", () => {
+          const lang     = chip.dataset.lang;
+          const langData = data.languages.find(l => l.lang === lang);
+          const listEl   = sdk.$(`#lang-articles-list`);
+
+          if (chip.classList.contains("on")) {
+            chip.classList.remove("on"); listEl.innerHTML = ""; return;
+          }
+          body.querySelectorAll(".chip[data-lang]").forEach(c => c.classList.remove("on"));
+          chip.classList.add("on");
+
+          if (!langData?.articles?.length) {
+            listEl.innerHTML = `<div style="font-size:12px;color:#9ca3af">No article links stored for this language.</div>`;
+            return;
+          }
+          listEl.innerHTML = `
+            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+              ${FLAGS[lang] || "🌐"} ${langData.label} — ${langData.count} article${langData.count !== 1 ? "s" : ""}
+            </div>
+            ${langData.articles.map(a => `
+              <div style="padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;display:flex;align-items:center;justify-content:space-between">
+                ${a.url
+                  ? `<a href="${baseUrl + a.url}" target="_blank" style="color:#4f46e5;text-decoration:underline;flex:1">${a.title}</a>`
+                  : `<span style="color:#374151;flex:1">${a.title}</span>`}
+                <span style="color:#9ca3af;font-size:10px;margin-left:8px;white-space:nowrap">${a.isDraft ? "draft" : "live"} · ${(a.publishedAt || "").substring(0, 10)}</span>
+              </div>`).join("")}`;
+        });
+      });
+    } catch (e) {
+      if (body) body.innerHTML = `<div style="font-size:12px;color:#9ca3af;text-align:center">Coverage data unavailable.</div>`;
+    }
+  }
+
+  el("lang-stats-refresh").addEventListener("click", loadLangStats);
+
   // ── init ───────────────────────────────────────────────────────────────────
   renderChips();
   loadCategories();
+  loadLangStats();
   el("reload-cats-btn").addEventListener("click", loadCategories);
 
   // Quill loads from CDN — wait for it then init
