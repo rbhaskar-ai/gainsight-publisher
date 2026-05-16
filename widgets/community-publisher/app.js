@@ -139,44 +139,45 @@ export function init(sdk) {
   }
 
   // ── per-language category sections ────────────────────────────────────────
-  async function loadCategoriesForLang(lang) {
+  // The inSided v2 API has no language filter on /v2/categories — all sections
+  // (English, French, Spanish…) are returned in a single list. We load once,
+  // cache, and populate every language dropdown from the same data so the user
+  // can pick the right section per language (e.g. "Community French Articles"
+  // for French, "Knowledge Base" for English).
+  let _catCache = null;
+
+  async function fetchAllCategories() {
+    if (_catCache) return _catCache;
+    const data = await api("categories", {});
+    const list = Array.isArray(data) ? data
+      : Array.isArray(data.result) ? data.result
+      : Array.isArray(data.result?.items) ? data.result.items
+      : Array.isArray(data.items) ? data.items
+      : [];
+    if (list.length) _catCache = list;
+    return list;
+  }
+
+  function fillCatSelect(lang, list) {
     const sel = sdk.$(`#cat-select-${lang}`);
     if (!sel) return;
     const l = LANGS.find(x => x.c === lang);
-    sel.innerHTML = `<option value="">Loading ${l.l} sections…</option>`;
-    try {
-      const data = await api("categories", { lang });
-      // Server normalizes to a flat array; also handle edge-case raw responses
-      const list = Array.isArray(data) ? data
-        : Array.isArray(data.result) ? data.result
-        : Array.isArray(data.result?.items) ? data.result.items
-        : Array.isArray(data.items) ? data.items
-        : [];
-      if (!list.length) throw new Error("empty");
-      sel.innerHTML = `<option value="">— Select a ${l.l} section —</option>` +
-        list.map(c => `<option value="${c.id}">${c.name || c.title || "Section " + c.id}</option>`).join("");
-    } catch (err) {
+    if (!list.length) {
       sel.innerHTML = `<option value="">Could not load — enter ID manually</option>`;
       const manualId = `cat-manual-${lang}`;
       if (!sdk.$(`#${manualId}`)) {
-        const retryId = `cat-retry-${lang}`;
         sel.insertAdjacentHTML("afterend",
-          `<div style="display:flex;gap:6px;margin-top:5px">
-            <input type="text" id="${manualId}" placeholder="Paste section ID from URL (e.g. 69)"
-              style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:inherit">
-            <button id="${retryId}" style="padding:6px 10px;font-size:11px;border:1px solid #d1d5db;background:#f9fafb;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Retry</button>
-          </div>`
+          `<input type="text" id="${manualId}" placeholder="Paste section ID from URL (e.g. 69)"
+            style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:inherit;margin-top:5px">`
         );
-        sdk.$(`#${retryId}`)?.addEventListener("click", () => {
-          const wrap = sdk.$(`#${retryId}`)?.parentElement;
-          if (wrap) wrap.remove();
-          loadCategoriesForLang(lang);
-        });
       }
+      return;
     }
+    sel.innerHTML = `<option value="">— Select ${l.l} section —</option>` +
+      list.map(c => `<option value="${c.id}">${c.name || c.title || "Section " + c.id}</option>`).join("");
   }
 
-  function renderLangSections() {
+  async function renderLangSections() {
     const body = el("lang-sections-body");
     if (!body) return;
     body.innerHTML = [...selectedLangs].map(lang => {
@@ -190,7 +191,13 @@ export function init(sdk) {
         </select>
       </div>`;
     }).join("");
-    [...selectedLangs].forEach(lang => loadCategoriesForLang(lang));
+    try {
+      const list = await fetchAllCategories();
+      if (!list.length) throw new Error("empty");
+      [...selectedLangs].forEach(lang => fillCatSelect(lang, list));
+    } catch {
+      [...selectedLangs].forEach(lang => fillCatSelect(lang, []));
+    }
   }
 
   function getCatId(lang) {
@@ -529,7 +536,7 @@ export function init(sdk) {
   renderChips();
   renderLangSections();
   loadLangStats();
-  el("reload-cats-btn").addEventListener("click", renderLangSections);
+  el("reload-cats-btn").addEventListener("click", () => { _catCache = null; renderLangSections(); });
 
   // Quill loads from CDN — wait for it then init
   function waitForQuill(tries) {
