@@ -155,13 +155,25 @@ export function init(sdk) {
   //   C. Remembered    localStorage, saved from last manual pick
 
   const LANG_KEYWORDS = {
-    fr: ["french", "français", "francais"],
-    es: ["spanish", "español", "espanol"],
-    de: ["german", "deutsch"],
-    pt: ["portuguese", "português", "portugues", "brazil", "brasil"],
-    ja: ["japanese", "日本語", "japan"],
-    ko: ["korean", "한국어", "korea"],
-    zh: ["chinese", "中文", "simplified", "mandarin"],
+    // Language name keywords (English + native) AND common community-category words in that language
+    // that are unambiguous enough to serve as identifiers even without accented characters.
+    fr: ["french", "français", "francais",
+         "connaissances", "connaissance",   // "base de connaissances" = knowledgebase
+         "nouvelles", "annonces",           // news / announcements
+         "ressources fr", "articles fr"],   // avoid "ressources" alone — too close to English
+    es: ["spanish", "español", "espanol",
+         "conocimiento", "conocimientos",   // knowledge
+         "noticias", "novedades",           // news / updates
+         "preguntas frecuentes"],           // FAQ
+    de: ["german", "deutsch",
+         "wissensdatenbank", "neuigkeiten", // knowledge base / news
+         "wissensartikel", "ankündigungen"],
+    pt: ["portuguese", "português", "portugues", "brazil", "brasil",
+         "conhecimento", "conhecimentos",   // knowledge
+         "novidades", "comunicados"],       // news / announcements
+    ja: ["japanese", "日本語", "japan", "ナレッジ", "お知らせ", "ナレッジベース"],
+    ko: ["korean", "한국어", "korea", "지식베이스", "공지사항", "지식"],
+    zh: ["chinese", "中文", "simplified", "mandarin", "知识库", "公告", "知识"],
   };
 
   // Returns a language code or null (= English / unknown).
@@ -194,14 +206,18 @@ export function init(sdk) {
         || detectTextLang(c.name || c.title || "");
   }
 
-  // Returns the subset of `list` relevant for `lang`.
-  // English gets neutral (undetected) categories.
-  // Other languages get their own detected categories; falls back to full list
-  // if none found (e.g. all categories still use English names).
+  // Returns { items, wasFiltered }.
+  // wasFiltered=true  → items is a language-specific subset
+  // wasFiltered=false → no language-specific categories found, items = full list (fallback)
   function filterForLang(lang, list, byId) {
-    if (lang === "en") return list.filter(c => !catLang(c, byId));
+    if (lang === "en") {
+      const items = list.filter(c => !catLang(c, byId));
+      return { items: items.length ? items : list, wasFiltered: items.length > 0 };
+    }
     const matched = list.filter(c => catLang(c, byId) === lang);
-    return matched.length ? matched : list; // fallback: show all
+    return matched.length
+      ? { items: matched, wasFiltered: true }
+      : { items: list,    wasFiltered: false };
   }
 
   let _catCache   = null;
@@ -260,34 +276,58 @@ export function init(sdk) {
       return;
     }
 
-    const byId    = Object.fromEntries(fullList.map(c => [c.id, c]));
-    const display = filterForLang(lang, fullList, byId);  // language-filtered list
-    const label   = c => c.name || c.title || ("Category " + c.id);
-    const pidOf   = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
+    const byId = Object.fromEntries(fullList.map(c => [c.id, c]));
+    const label = c => c.name || c.title || ("Category " + c.id);
+    const pidOf = c => c.parentId || c.parent_id || c.sectionId || c.section?.id || null;
 
-    // Group display items by parent so they appear under optgroup headers
-    const byParent = {};
-    const noParent = [];
-    for (const c of display) {
-      const p = pidOf(c);
-      p && byId[p] ? (byParent[p] = byParent[p] || []).push(c) : noParent.push(c);
-    }
-
-    let html = `<option value="">— Select ${l.l} section —</option>`;
-    const shownParents = new Set();
-    for (const c of display) {
-      const p = pidOf(c);
-      if (p && byId[p] && !shownParents.has(p)) {
-        shownParents.add(p);
-        html += `<optgroup label="${label(byId[p])}">`;
-        for (const k of byParent[p]) html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
-        html += `</optgroup>`;
+    function buildOptions(items) {
+      const byParent = {}, noParent = [];
+      for (const c of items) {
+        const p = pidOf(c);
+        p && byId[p] ? (byParent[p] = byParent[p] || []).push(c) : noParent.push(c);
       }
+      let html = `<option value="">— Select ${l.l} section —</option>`;
+      const shown = new Set();
+      for (const c of items) {
+        const p = pidOf(c);
+        if (p && byId[p] && !shown.has(p)) {
+          shown.add(p);
+          html += `<optgroup label="${label(byId[p])}">`;
+          for (const k of byParent[p]) html += `<option value="${k.id}">${label(k)} (ID: ${k.id})</option>`;
+          html += `</optgroup>`;
+        }
+      }
+      for (const c of noParent) html += `<option value="${c.id}">${label(c)} (ID: ${c.id})</option>`;
+      return html;
     }
-    for (const c of noParent) {
-      html += `<option value="${c.id}">${label(c)} (ID: ${c.id})</option>`;
+
+    const { items: display, wasFiltered } = filterForLang(lang, fullList, byId);
+    sel.innerHTML = buildOptions(display);
+
+    // Info row: shows filter status + "Show all" escape hatch
+    const infoId = `cat-info-${lang}`;
+    sdk.$(`#${infoId}`)?.remove();
+    if (wasFiltered && display.length < fullList.length) {
+      sel.insertAdjacentHTML("afterend",
+        `<div id="${infoId}" style="font-size:10px;color:#6b7280;margin-top:3px;display:flex;gap:8px;align-items:center">
+          <span>Showing ${display.length} of ${fullList.length} sections</span>
+          <a href="#" id="cat-showall-${lang}" style="color:#4f46e5;text-decoration:underline">Show all ↓</a>
+        </div>`
+      );
+      sdk.$(`#cat-showall-${lang}`)?.addEventListener("click", e => {
+        e.preventDefault();
+        sel.innerHTML = buildOptions(fullList);
+        sdk.$(`#${infoId}`)?.remove();
+        const saved = getCatId(lang);
+        if (saved) sel.value = saved;
+      });
+    } else if (!wasFiltered && lang !== "en") {
+      sel.insertAdjacentHTML("afterend",
+        `<div id="${infoId}" style="font-size:10px;color:#9ca3af;margin-top:3px">
+          Showing all sections — no ${l.l}-language sections detected
+        </div>`
+      );
     }
-    sel.innerHTML = html;
 
     // Auto-select: props config → first in filtered list → remembered
     const def = resolveDefaultCat(lang, display);
@@ -298,7 +338,10 @@ export function init(sdk) {
                   :                      { t: "Remembered",    c: "#9ca3af" };
       const badgeId = `cat-badge-${lang}`;
       sdk.$(`#${badgeId}`)?.remove();
-      sel.insertAdjacentHTML("afterend",
+      // Insert badge before the info div so ordering stays clean
+      const infoEl = sdk.$(`#${infoId}`);
+      const target = infoEl || sel;
+      target.insertAdjacentHTML(infoEl ? "beforebegin" : "afterend",
         `<div id="${badgeId}" style="font-size:10px;color:${badge.c};margin-top:3px">✓ ${badge.t}</div>`
       );
     }
