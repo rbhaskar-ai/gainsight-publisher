@@ -146,18 +146,32 @@ export function init(sdk) {
     sel.innerHTML = `<option value="">Loading ${l.l} sections…</option>`;
     try {
       const data = await api("categories", { lang });
-      const list = Array.isArray(data) ? data : (data.items || data.result || []);
+      // Server normalizes to a flat array; also handle edge-case raw responses
+      const list = Array.isArray(data) ? data
+        : Array.isArray(data.result) ? data.result
+        : Array.isArray(data.result?.items) ? data.result.items
+        : Array.isArray(data.items) ? data.items
+        : [];
       if (!list.length) throw new Error("empty");
       sel.innerHTML = `<option value="">— Select a ${l.l} section —</option>` +
         list.map(c => `<option value="${c.id}">${c.name || c.title || "Section " + c.id}</option>`).join("");
-    } catch {
+    } catch (err) {
       sel.innerHTML = `<option value="">Could not load — enter ID manually</option>`;
       const manualId = `cat-manual-${lang}`;
       if (!sdk.$(`#${manualId}`)) {
+        const retryId = `cat-retry-${lang}`;
         sel.insertAdjacentHTML("afterend",
-          `<input type="text" id="${manualId}" placeholder="Paste section ID from URL (e.g. 69)"
-            style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:inherit;margin-top:5px">`
+          `<div style="display:flex;gap:6px;margin-top:5px">
+            <input type="text" id="${manualId}" placeholder="Paste section ID from URL (e.g. 69)"
+              style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:12px;font-family:inherit">
+            <button id="${retryId}" style="padding:6px 10px;font-size:11px;border:1px solid #d1d5db;background:#f9fafb;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Retry</button>
+          </div>`
         );
+        sdk.$(`#${retryId}`)?.addEventListener("click", () => {
+          const wrap = sdk.$(`#${retryId}`)?.parentElement;
+          if (wrap) wrap.remove();
+          loadCategoriesForLang(lang);
+        });
       }
     }
   }
@@ -235,10 +249,6 @@ export function init(sdk) {
   function restoreImgs(text, imgs) {
     return text.replace(/\[IMG(\d+)\]/g, (_, i) => imgs[+i] || "");
   }
-  function htmlToPlain(html) {
-    return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  }
-
   // ── publish ───────────────────────────────────────────────────────────────
   el("publish-btn").addEventListener("click", async () => {
     const title   = el("title").value.trim();
