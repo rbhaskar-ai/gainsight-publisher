@@ -12,6 +12,13 @@
       "configuration": {
         "properties": [
           {
+            "name": "serverUrl",
+            "type": "text",
+            "label": "Server URL",
+            "description": "Your Render server URL (e.g. https://community-publisher-server.onrender.com). When set, the widget calls the server directly — no Gainsight connector needed.",
+            "defaultValue": ""
+          },
+          {
             "name": "communityBaseUrl",
             "type": "text",
             "label": "Community Base URL",
@@ -35,6 +42,7 @@
         ]
       },
       "defaultConfig": {
+        "serverUrl": "",
         "communityBaseUrl": "",
         "supportEmail": "",
         "defaultCategories": "{}"

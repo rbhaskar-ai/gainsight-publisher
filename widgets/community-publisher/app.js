@@ -20,9 +20,18 @@ export function init(sdk) {
   const props  = sdk.getProps();
   let baseUrl  = (props.communityBaseUrl || "").replace(/\/$/, "");
   let supportEmail = props.supportEmail || "";
+  let serverUrl = (props.serverUrl || "").replace(/\/$/, "");
 
   async function api(action, params) {
-    if (!sdk.connectors) throw new Error("Connector SDK not available — reload the widget.");
+    if (serverUrl) {
+      const res = await fetch(`${serverUrl}/widget`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...params }),
+      });
+      return res.json();
+    }
+    if (!sdk.connectors) throw new Error("Connector SDK not available — set Server URL in widget config or configure the connector.");
     return sdk.connectors.execute({
       permalink: CONNECTOR,
       method:    "POST",
@@ -609,6 +618,7 @@ export function init(sdk) {
     const p = sdk.getProps();
     baseUrl = (p.communityBaseUrl || "").replace(/\/$/, "");
     supportEmail = p.supportEmail || "";
+    serverUrl = (p.serverUrl || "").replace(/\/$/, "");
     try { _defCatsMap = JSON.parse(p.defaultCategories || "{}"); } catch { _defCatsMap = {}; }
   });
 
