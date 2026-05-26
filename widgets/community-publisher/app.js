@@ -14,7 +14,8 @@ const TX_NAMES = {
   ja:"Japanese", ko:"Korean", zh:"Simplified Chinese",
 };
 
-const SERVER_URL = "https://community-publisher-server.onrender.com";
+const SERVER_URL     = "https://community-publisher-server.onrender.com";
+const WIDGET_SECRET  = "fa33cae51dc4f87894dcc60f430965c8bccc88faea3da385";
 
 export function init(sdk) {
   const props  = sdk.getProps();
@@ -25,7 +26,7 @@ export function init(sdk) {
   async function api(action, params) {
     const res = await fetch(`${serverUrl}/widget`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Widget-Secret": WIDGET_SECRET },
       body: JSON.stringify({ action, ...params }),
     });
     return res.json();
