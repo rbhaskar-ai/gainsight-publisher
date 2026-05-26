@@ -22,8 +22,9 @@ export function init(sdk) {
   let supportEmail = props.supportEmail || "";
 
   async function api(action, params) {
-    if (!sdk.connectors) throw new Error("Connector SDK not available — ensure the community-publisher connector is configured in Gainsight.");
-    return sdk.connectors.execute({
+    const connSdk = (sdk.connectors ? sdk : (window.WidgetServiceSDK ? new window.WidgetServiceSDK() : null));
+    if (!connSdk?.connectors) throw new Error("Connector SDK not available — ensure the community-publisher connector is configured in Gainsight.");
+    return connSdk.connectors.execute({
       permalink: CONNECTOR,
       method:    "POST",
       payload:   { action, ...params },
