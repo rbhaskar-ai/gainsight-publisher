@@ -14,22 +14,20 @@ const TX_NAMES = {
   ja:"Japanese", ko:"Korean", zh:"Simplified Chinese",
 };
 
-const SERVER_URL     = "https://community-publisher-server.onrender.com";
-const WIDGET_SECRET  = "fa33cae51dc4f87894dcc60f430965c8bccc88faea3da385";
+const CONNECTOR = "community-publisher";
 
 export function init(sdk) {
   const props  = sdk.getProps();
   let baseUrl  = (props.communityBaseUrl || "").replace(/\/$/, "");
   let supportEmail = props.supportEmail || "";
-  let serverUrl = (props.serverUrl || SERVER_URL).replace(/\/$/, "");
 
   async function api(action, params) {
-    const res = await fetch(`${serverUrl}/widget`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Widget-Secret": WIDGET_SECRET },
-      body: JSON.stringify({ action, ...params }),
+    if (!sdk.connectors) throw new Error("Connector SDK not available — ensure the community-publisher connector is configured in Gainsight.");
+    return sdk.connectors.execute({
+      permalink: CONNECTOR,
+      method:    "POST",
+      payload:   { action, ...params },
     });
-    return res.json();
   }
 
   let selectedLangs = new Set(["en"]);
@@ -611,7 +609,6 @@ export function init(sdk) {
     const p = sdk.getProps();
     baseUrl = (p.communityBaseUrl || "").replace(/\/$/, "");
     supportEmail = p.supportEmail || "";
-    serverUrl = (p.serverUrl || "").replace(/\/$/, "");
     try { _defCatsMap = JSON.parse(p.defaultCategories || "{}"); } catch { _defCatsMap = {}; }
   });
 
