@@ -710,13 +710,17 @@ export function init(sdk) {
     }
   }
 
-  el("lang-stats-refresh").addEventListener("click", loadLangStats);
+  el("lang-stats-refresh")?.addEventListener("click", loadLangStats);
 
   // ── init ───────────────────────────────────────────────────────────────────
-  renderChips();
-  renderLangSections();
-  loadLangStats();
-  el("reload-cats-btn").addEventListener("click", () => { _catCache = null; renderLangSections(); });
+  try {
+    renderChips();
+    renderLangSections().catch(e => console.error("renderLangSections:", e));
+    loadLangStats().catch(e => console.error("loadLangStats:", e));
+    el("reload-cats-btn")?.addEventListener("click", () => { _catCache = null; renderLangSections(); });
+  } catch (e) {
+    console.error("Widget init error:", e);
+  }
 
   // Quill loads from CDN — wait for it then init
   function waitForQuill(tries) {
