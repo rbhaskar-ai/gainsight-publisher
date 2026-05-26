@@ -22,8 +22,8 @@ export function init(sdk) {
   let supportEmail = props.supportEmail || "";
 
   async function api(action, params) {
-    const connSdk = (sdk.connectors) ? sdk : new window.WidgetServiceSDK();
-    return connSdk.connectors.execute({
+    if (!sdk.connectors) throw new Error("Connector SDK not available — reload the widget.");
+    return sdk.connectors.execute({
       permalink: CONNECTOR,
       method:    "POST",
       payload:   { action, ...params },
@@ -415,9 +415,9 @@ export function init(sdk) {
   // ── AI disclaimer appended to all translated articles ─────────────────────
   function buildDisclaimer() {
     const contact = supportEmail
-      ? ` Please report any inaccuracies to <a href="mailto:${supportEmail}">${supportEmail}</a>.`
+      ? ` If you see any updates required in content please reach out to <a href="mailto:${supportEmail}">${supportEmail}</a>.`
       : "";
-    return `<p><br></p><p>---</p><p><em>🤖 <strong>AI Translation Notice:</strong> This article has been automatically translated from English using AI.${contact}</em></p>`;
+    return `<p><br></p><p>---</p><p><em>This is AI Translated Content.${contact}</em></p>`;
   }
 
   // ── translation helpers ───────────────────────────────────────────────────
