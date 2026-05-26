@@ -14,29 +14,21 @@ const TX_NAMES = {
   ja:"Japanese", ko:"Korean", zh:"Simplified Chinese",
 };
 
-const CONNECTOR = "community-publisher";
+const SERVER_URL = "https://community-publisher-server.onrender.com";
 
 export function init(sdk) {
   const props  = sdk.getProps();
   let baseUrl  = (props.communityBaseUrl || "").replace(/\/$/, "");
   let supportEmail = props.supportEmail || "";
-  let serverUrl = (props.serverUrl || "").replace(/\/$/, "");
+  let serverUrl = (props.serverUrl || SERVER_URL).replace(/\/$/, "");
 
   async function api(action, params) {
-    if (serverUrl) {
-      const res = await fetch(`${serverUrl}/widget`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...params }),
-      });
-      return res.json();
-    }
-    if (!sdk.connectors) throw new Error("Connector SDK not available — set Server URL in widget config or configure the connector.");
-    return sdk.connectors.execute({
-      permalink: CONNECTOR,
-      method:    "POST",
-      payload:   { action, ...params },
+    const res = await fetch(`${serverUrl}/widget`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...params }),
     });
+    return res.json();
   }
 
   let selectedLangs = new Set(["en"]);
